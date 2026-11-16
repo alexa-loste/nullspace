@@ -21,6 +21,27 @@ That is also why the demo needs more than one lab and more than one year.
 
 ---
 
+## Act 0 — the wall. Thirty seconds, no narration needed.
+
+**Screen:** What happens to a null.
+
+One card per result in the repository, each showing what was actually tried and
+what was seen. Set the year to the earliest and press **Play**.
+
+Cards appear in the year they were shelved, grey. Then some of them change — in
+the real publication year of the work that changed them — and gain a line saying
+what the field did. Amber where the question narrowed, green where later work
+made it answerable again, red where somebody else published it first.
+
+**The line to say:** *every one of these was a dead end when it was filed.
+Nothing on this screen is on a timer — a card changes in the year the paper that
+changed it came out. This is what already happened to this literature, and
+nobody was watching it happen.*
+
+Then stop on one card and open it. That is Act 1.
+
+---
+
 ## Act 1 — 2022. The null happens.
 
 **Who:** Alexa, a graduate student. **Screen:** the result page.
