@@ -224,6 +224,31 @@ mark{background:var(--marker);color:var(--ink);padding:0 2px}
 .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0 0}
 .tally{margin-left:auto;font-size:13px;color:var(--soft)}
 
+
+/* ---- the grid: the aggregate claim, legible from the back of a room ---- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:5px;
+  margin-top:16px}
+.cell{aspect-ratio:1;border:1px solid var(--line);background:var(--tint);
+  border-radius:2px;position:relative;cursor:pointer;transition:background .45s ease,
+  border-color .45s ease,transform .18s ease}
+.cell:hover{transform:scale(1.14);z-index:2;border-color:var(--ink)}
+.cell .yr{position:absolute;inset:auto 0 2px 0;text-align:center;font-size:9px;
+  font-family:var(--mono);color:var(--faint);opacity:.75}
+.cell.green{background:#2f7d4f;border-color:#276a42}
+.cell.amber{background:#c08a2a;border-color:#a3741f}
+.cell.red{background:#9b3a3a;border-color:#853131}
+.cell.green .yr,.cell.amber .yr,.cell.red .yr{color:rgba(255,255,255,.85)}
+.scrub{display:flex;align-items:center;gap:14px;margin-top:18px;max-width:620px}
+.scrub input[type=range]{flex:1;width:auto;padding:0;border:0;background:transparent;
+  accent-color:var(--accent)}
+.scrub .yr{font-family:var(--head);font-weight:700;font-size:30px;min-width:92px;
+  line-height:1}
+.keys{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--soft)}
+.keys b{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:6px;
+  vertical-align:-1px}
+.tip{border:1px solid var(--line);background:var(--surface);padding:11px 13px;
+  margin-top:14px;min-height:62px;font-size:14.5px;line-height:1.5;max-width:76ch}
+
 /* ---- landing: wide, so the product is visible before anyone signs up ---- */
 .land{max-width:860px;margin:0 auto;padding:46px 26px 80px}
 .hero h1{font-size:clamp(30px,5vw,46px);letter-spacing:-.2px}
@@ -531,6 +556,7 @@ function shell(head,inner,on){
       <a class="nav ${on==='ask'?'on':''}" href="#/ask">Ask your agent</a>
       <div class="rsec">The repository</div>
       <a class="nav ${on==='repo'?'on':''}" href="#/repo">Ready to pick up</a>
+      <a class="nav ${on==='grid'?'on':''}" href="#/grid">What happens to a null</a>
       <a class="nav ${on==='lit'?'on':''}" href="#/literature">From the literature</a>
       <div class="rsec">Your lab</div>
       <a class="nav ${on==='shelf'?'on':''}" href="#/shelf">Projects<span class="n" id="nShelf"></span></a>
@@ -632,6 +658,7 @@ async function route(){
     else if(seg==='record')await viewRecord();
     else if(seg==='literature')await viewLiterature();
     else if(seg==='repo')await viewRepo();
+    else if(seg==='grid')await viewGrid();
     else if(seg==='mine')await viewShelf(true);
     else if(seg==='connections')await viewConnections();
     else if(seg==='help')await viewHelp();
@@ -786,6 +813,95 @@ async function viewRecord(){
     `,'rec');
   wire();
   $$('[data-go]').forEach(el=>el.onclick=()=>{location.hash=el.dataset.go;route()});
+}
+
+
+/* ---------------------------------------------------------------- grid
+   The aggregate claim in one screen: a lab's nulls do not stay dead. Drag the
+   year and watch the field move under them. The dates are real - each cell
+   changes colour in the publication year of the work that changed it - so this
+   is a record, not an animation. */
+let GRID=null,GY=null;
+async function viewGrid(){
+  if(!GRID)GRID=await api('/api/answerable');
+  const rows=(GRID.rows||[]).slice().sort((a,b)=>(a.year||0)-(b.year||0));
+  const years=rows.map(r=>r.year).filter(Boolean)
+    .concat(rows.map(r=>r.changed_in).filter(Boolean));
+  const y0=Math.min(...years,2015),y1=Math.max(...years,new Date().getFullYear());
+  if(GY==null)GY=y1;
+  const shown=rows.filter(r=>!r.year||r.year<=GY);
+  const n=k=>shown.filter(r=>stateAt(r,GY)===k).length;
+
+  $('#root').innerHTML=shell(
+    `<div><h1>What happens to a null</h1>
+      <p class="lede">Every result in this repository, one square each, from the year it
+        was shelved. A square changes colour in the year the work that changed it was
+        published &mdash; so this is a record of what the literature actually did, not
+        an animation.</p></div>`,`
+    <div class="scrub">
+      <span class="yr" id="gy">${GY}</span>
+      <input type="range" id="gsl" min="${y0}" max="${y1}" step="1" value="${GY}">
+      <button class="sm" id="gplay">Play</button></div>
+    <div class="keys">
+      <span><b style="background:var(--tint);border:1px solid var(--line)"></b>shelved, nothing since</span>
+      <span><b style="background:#c08a2a"></b>question narrowed</span>
+      <span><b style="background:#2f7d4f"></b>answerable now</span>
+      <span><b style="background:#9b3a3a"></b>someone else published it</span></div>
+
+    <div class="stats">
+      <div class="stat"><span class="v">${shown.length}</span><span class="l">shelved by ${GY}</span></div>
+      <div class="stat"><span class="v" style="color:#2f7d4f">${n('green')}</span>
+        <span class="l">worth picking up</span></div>
+      <div class="stat"><span class="v" style="color:#c08a2a">${n('amber')}</span>
+        <span class="l">narrowed</span></div>
+      <div class="stat"><span class="v" style="color:#9b3a3a">${n('red')}</span>
+        <span class="l">scooped</span></div>
+    </div>
+
+    <div class="grid" id="gw"></div>
+    <div class="tip" id="gtip"><span class="small">Hover a square. Drag the year to watch
+      the field move under them.</span></div>
+    ${rows.length<40?`<p class="tiny" style="margin-top:14px">${rows.length} real results.
+      Each is a published paper or a logged experiment, and every colour change is a real
+      publication date. Nothing is filled in to make the grid look busier.</p>`:''}
+    `,'grid');
+  wire();paintGrid(rows);
+  const sl=$('#gsl');
+  sl.oninput=()=>{GY=+sl.value;$('#gy').textContent=GY;paintGrid(rows);};
+  $('#gplay').onclick=()=>{
+    let y=y0;const t=setInterval(()=>{
+      if(y>y1){clearInterval(t);return;}
+      GY=y;sl.value=y;$('#gy').textContent=y;paintGrid(rows);y++;},620);};
+}
+/* A null is grey until the work that changes it is published, then it takes
+   the colour of what that work did to it. Nothing is coloured before its own
+   evidence exists. */
+function stateAt(r,y){
+  if(!r.year||r.year>y)return 'future';
+  if(!r.changed_in||r.changed_in>y)return 'grey';
+  if(r.scooped)return 'red';
+  if(r.overall==='resolved')return 'green';
+  if(r.overall==='narrowed')return 'amber';
+  return 'grey';
+}
+/* Repaint in place: re-rendering the whole page would lose the drag. */
+function paintGrid(rows){
+  const shown=rows.filter(r=>!r.year||r.year<=GY);
+  const w=$('#gw');if(!w)return;
+  w.innerHTML=shown.map((r,i)=>{const st=stateAt(r,GY);
+    return `<div class="cell ${st==='grey'?'':st}" data-i="${i}"
+      title="${esc(r.title||'')}"><span class="yr">${r.year||''}</span></div>`;}).join('');
+  $$('#gw .cell').forEach(c=>{const r=shown[+c.dataset.i];
+    c.onclick=()=>{location.hash='#/result/'+r.id;route();};
+    c.onmouseenter=()=>{$('#gtip').innerHTML=`<b>${esc(r.title||'')}</b>
+      <span class="tiny" style="display:block">${esc(r.lab||'')} &middot; shelved ${r.year||'?'}${
+        r.changed_in?' &middot; changed '+r.changed_in:''}</span>
+      ${r.what_the_field_did?`<span class="small" style="display:block;margin-top:4px">${
+        esc(r.what_the_field_did)}</span>`:''}`;};});
+  const st=$$('.stat .v'),k=s=>shown.filter(r=>stateAt(r,GY)===s).length;
+  if(st.length>=4){st[0].textContent=shown.length;st[1].textContent=k('green');
+    st[2].textContent=k('amber');st[3].textContent=k('red');}
+  const lbl=$$('.stat .l')[0];if(lbl)lbl.textContent='shelved by '+GY;
 }
 
 /* ---------------------------------------------------------------- repository

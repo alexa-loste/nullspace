@@ -609,5 +609,13 @@ Return JSON:
   "overall": "resolved"|"narrowed"|"open",
   "what_the_field_did": "<two or three sentences: what actually happened to this question>",
   "agent_was_right": true | false | null,
-  "best_missed": "<the explanation the agent should have proposed and did not, or null>"}}"""
+  "best_missed": "<the explanation the agent should have proposed and did not, or null>",
+  "someone_else_published_it": true | false,
+  "changed_in": <the publication year of the earliest paper that changed this null's standing, or null>}}
+
+"someone_else_published_it" is true only when later work reports the SAME
+experiment succeeding, or otherwise closes the question the scientist was
+asking. That is being scooped, and it is a different outcome from the question
+being answered in a way they could still build on. Do not use it for work that
+merely bears on the result."""
     return llm.call_json(prompt, system=f"{SCIENTIST}\n\n{JSON}")

@@ -169,10 +169,23 @@ class Agent:
         brief["since"] = since
         store.put("briefs", brief)
         verdict = since.get("overall", "open")
-        store.event(self.sid, "scouted",
-                    f"What the field did about “{(card.get('title') or '')[:60]}”",
-                    since.get("what_the_field_did", ""), problem_id=prob["id"],
-                    brief_id=brief["id"], actionable=True)
+        # The moment the product stops being somewhere you go and becomes
+        # something that comes to you. A null nobody was thinking about has
+        # become answerable, and the only person who can act on that is the
+        # one who shelved it.
+        scooped = since.get("someone_else_published_it")
+        if scooped:
+            head = f"Someone else published this: “{(card.get('title') or '')[:52]}”"
+        elif verdict == "resolved":
+            head = f"You can revisit this now — “{(card.get('title') or '')[:52]}”"
+        elif verdict == "narrowed":
+            head = f"The question got sharper — “{(card.get('title') or '')[:52]}”"
+        else:
+            head = f"Still open — “{(card.get('title') or '')[:52]}”"
+        store.event(self.sid, "revisit" if verdict != "open" else "scouted",
+                    head, since.get("what_the_field_did", ""),
+                    problem_id=prob["id"], brief_id=brief["id"],
+                    actionable=verdict != "open")
         say(f"{self.name}: {verdict}"
             + (" — and its own top explanation held up" if since.get("agent_was_right")
                else " — its own top explanation did not hold up"

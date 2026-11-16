@@ -156,6 +156,28 @@ def brief_view(b):
     }
 
 
+def _changed_in(since, card):
+    """The year the field moved under a null, from real publication dates.
+
+    The model may name a year, but it is grading prose; the papers it cited are
+    harder evidence, so the earliest of those wins. Falls back to the model's
+    own number, then to nothing, because a made-up date would be the one part
+    of this timeline that is not real.
+    """
+    if not since:
+        return None
+    years = []
+    for v in since.get("verdicts") or []:
+        if v.get("verdict") in ("supported", "contradicted", "superseded"):
+            years += [p.get("year") for p in (v.get("papers") or []) if p.get("year")]
+    if years:
+        return min(years)
+    claimed = since.get("changed_in")
+    if isinstance(claimed, int) and claimed > (card.get("year") or 0):
+        return claimed
+    return None
+
+
 def match_view(m):
     if not m:
         return None
@@ -428,6 +450,11 @@ class Handler(BaseHTTPRequestHandler):
                     "agent_was_right": since.get("agent_was_right"),
                     "has_pickup": bool(pr.get("pickup")),
                     "cheapest": (pr.get("pickup") or {}).get("first_thing"),
+                    # When the null's standing changed, and into what. Taken
+                    # from the publication year of the work that changed it, so
+                    # the timeline is real dates rather than an animation.
+                    "changed_in": _changed_in(since, card),
+                    "scooped": bool(since.get("someone_else_published_it")),
                 })
             order = {"resolved": 0, "narrowed": 1, "open": 2, None: 3}
             rows.sort(key=lambda r: (order.get(r["overall"], 3), -r["n_newer"]))
