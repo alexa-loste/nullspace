@@ -151,6 +151,7 @@ def brief_view(b):
         "dropped_citations": a.get("_dropped_citations", 0),
         "contacts": b.get("contacts", []), "rejected_contacts": b.get("rejected_contacts", []),
         "score": b.get("score"), "truth": b.get("truth"),
+        "since": b.get("since"), "as_of": b.get("as_of"),
         "created": b.get("created"),
     }
 
@@ -364,12 +365,19 @@ class Handler(BaseHTTPRequestHandler):
             pr = store.get("problems", (q.get("id") or [""])[0])
             if not pr:
                 return self.json({"error": "not found"}, 404)
+            owner = store.get("scientists", pr["scientist_id"])
+            # Who this could be handed to: the reader's own lab. A handover
+            # across labs is a collaboration, which is a different thing.
+            mylab = (store.get("scientists", me["id"]) or {}).get("lab") if me else None
+            mates = [agent_card(s) for s in store.all_of("scientists")
+                     if mylab and s.get("lab") == mylab and me and s["id"] != me["id"]]
             return self.json({
                 "problem": pr,
                 "brief": brief_view(store.get("briefs", pr["brief_id"])) if pr.get("brief_id") else None,
                 "signal": store.get("signals", pr["signal_id"]) if pr.get("signal_id") else None,
                 "matches": [match_view(m) for m in store.where("matches", problem_id=pr["id"])],
-                "scientist": agent_card(store.get("scientists", pr["scientist_id"])),
+                "scientist": agent_card(owner),
+                "labmates": mates,
             })
 
         if p == "/api/brief":
@@ -377,6 +385,60 @@ class Handler(BaseHTTPRequestHandler):
 
         if p == "/api/match":
             return self.json({"match": match_view(store.get("matches", (q.get("id") or [""])[0]))})
+
+        if p == "/api/answerable":
+            # The repository read from outside: every null anyone can see,
+            # ranked by how much the field has moved since it was shelved.
+            # This is the view somebody looking for a project opens, and the
+            # one a PI scans. It is also the only screen that needs more than
+            # one lab to make sense.
+            if not me:
+                return self.json({"error": "no scientist"}, 401)
+            full = store.get("scientists", me["id"]) or {}
+            my_lab = full.get("lab")
+            rows = []
+            for pr in store.all_of("problems"):
+                owner = store.get("scientists", pr["scientist_id"]) or {}
+                vis = pr.get("visibility", "lab")
+                mine_lab = owner.get("lab") == my_lab
+                if vis == "lab" and not mine_lab:
+                    continue
+                b = store.get("briefs", pr["brief_id"]) if pr.get("brief_id") else None
+                card = pr["card"]
+                since = (b or {}).get("since") or {}
+                newer = 0
+                if b and card.get("year"):
+                    newer = sum(1 for x in (b.get("papers") or [])
+                                if (x.get("year") or 0) > card["year"])
+                newer += len(since.get("papers") or [])
+                hs = ((b or {}).get("analysis") or {}).get("hypotheses") or []
+                rows.append({
+                    "id": pr["id"], "title": card.get("title"),
+                    "year": card.get("year"), "as_of": pr.get("as_of"),
+                    "field": card.get("field"),
+                    "owner": owner.get("name"), "lab": owner.get("lab"),
+                    "same_lab": mine_lab, "visibility": vis,
+                    "origin": pr.get("origin", "logged"),
+                    "unclaimed": pr.get("unclaimed", False),
+                    "assigned_to": pr.get("assigned_to_name"),
+                    "n_newer": newer, "n_explanations": len(hs),
+                    "read": bool(b),
+                    "overall": since.get("overall"),
+                    "what_the_field_did": since.get("what_the_field_did"),
+                    "agent_was_right": since.get("agent_was_right"),
+                    "has_pickup": bool(pr.get("pickup")),
+                    "cheapest": (pr.get("pickup") or {}).get("first_thing"),
+                })
+            order = {"resolved": 0, "narrowed": 1, "open": 2, None: 3}
+            rows.sort(key=lambda r: (order.get(r["overall"], 3), -r["n_newer"]))
+            return self.json({
+                "rows": rows,
+                "labs": sorted({r["lab"] for r in rows if r["lab"]}),
+                "n_resolved": sum(1 for r in rows if r["overall"] == "resolved"),
+                "n_narrowed": sum(1 for r in rows if r["overall"] == "narrowed"),
+                "people": [agent_card(s) for s in store.all_of("scientists")
+                           if s.get("lab") == my_lab and s["id"] != me["id"]],
+            })
 
         if p == "/api/connections":
             # Anchored on the result, not the person. Two agents agreeing their
@@ -651,6 +713,46 @@ class Handler(BaseHTTPRequestHandler):
             store.event(pr["scientist_id"], "note", f"{me['name']} co-signed your result",
                         pr["card"].get("title", ""), problem_id=pr["id"])
             return self.json({"problem": store.patch("problems", pr["id"], cosigns=signs)})
+
+        if p == "/api/handoff":
+            # The event the whole lab-private tier exists for: somebody who
+            # will not run the experiment hands it to somebody who will. The
+            # handover is written at the same moment, because a handoff
+            # without one is just an email that says "look at this".
+            pr = store.get("problems", b.get("id") or "")
+            to = store.get("scientists", b.get("to") or "")
+            if not pr or not to:
+                return self.json({"error": "not found"}, 404)
+            note = (b.get("note") or "").strip()[:500]
+            store.patch("problems", pr["id"],
+                        assigned_to=to["id"], assigned_to_name=to["name"],
+                        assigned_by=me["name"], assigned_note=note)
+            store.event(to["id"], "note", f"{me['name']} handed you a result",
+                        note or pr["card"].get("title", ""),
+                        problem_id=pr["id"], actionable=True)
+
+            def go():
+                fresh = store.get("problems", pr["id"]) or pr
+                if fresh.get("pickup"):
+                    return {"ok": True, "pickup": fresh["pickup"]}
+                br = store.get("briefs", fresh["brief_id"]) if fresh.get("brief_id") else None
+                an = (br or {}).get("analysis") or {}
+                card = fresh["card"]
+                newer = [x for x in ((br or {}).get("papers") or [])
+                         if (x.get("year") or 0) > (card.get("year") or 9999)]
+                newer += ((br or {}).get("since") or {}).get("papers") or []
+                ms = []
+                for m in store.where("matches", problem_id=fresh["id"]):
+                    if not m.get("can_help"):
+                        continue
+                    who = store.get("scientists", m["responder_id"]) or {}
+                    ms.append({"name": who.get("name"), "field": who.get("field"),
+                               "offered": (m.get("response") or {}).get("specifically")})
+                out = agents.pickup(card, an, matches=ms, newer=newer[:10])
+                store.patch("problems", fresh["id"], pickup=out)
+                return {"ok": True, "pickup": out}
+
+            return self.json({"job": submit(go)})
 
         if p == "/api/pickup":
             pr = store.get("problems", b.get("id") or "")

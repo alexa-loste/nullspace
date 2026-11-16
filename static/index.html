@@ -529,10 +529,12 @@ function shell(head,inner,on){
       <div class="mark">Nullspace<small>${esc(ME.lab||'negative results')}</small></div>
       <a class="nav ${on==='home'?'on':''}" href="#/home" style="margin-top:10px">Home</a>
       <a class="nav ${on==='ask'?'on':''}" href="#/ask">Ask your agent</a>
-      <div class="rsec">The shelf</div>
+      <div class="rsec">The repository</div>
+      <a class="nav ${on==='repo'?'on':''}" href="#/repo">Ready to pick up</a>
+      <a class="nav ${on==='lit'?'on':''}" href="#/literature">From the literature</a>
+      <div class="rsec">Your lab</div>
       <a class="nav ${on==='shelf'?'on':''}" href="#/shelf">Projects<span class="n" id="nShelf"></span></a>
       <a class="nav ${on==='new'?'on':''}" href="#/new">Log a result</a>
-      <a class="nav ${on==='lit'?'on':''}" href="#/literature">From the literature</a>
       <div class="rsec">You</div>
       <a class="nav ${on==='mine'?'on':''}" href="#/mine">Your results</a>
       <a class="nav ${on==='rec'?'on':''}" href="#/record">Your record</a>
@@ -629,6 +631,7 @@ async function route(){
     else if(seg==='home')await viewHome();
     else if(seg==='record')await viewRecord();
     else if(seg==='literature')await viewLiterature();
+    else if(seg==='repo')await viewRepo();
     else if(seg==='mine')await viewShelf(true);
     else if(seg==='connections')await viewConnections();
     else if(seg==='help')await viewHelp();
@@ -783,6 +786,93 @@ async function viewRecord(){
     `,'rec');
   wire();
   $$('[data-go]').forEach(el=>el.onclick=()=>{location.hash=el.dataset.go;route()});
+}
+
+/* ---------------------------------------------------------------- repository
+   The repository read from outside a lab, by somebody looking for a project
+   rather than somebody tidying their own. A null is worth picking up when the
+   field has moved under it, so that is what the list is sorted by. */
+const SINCE={
+  resolved:['known','answered since it was shelved',
+    'Work published after this was shelved explains it. What is left is confirming it applies here, which is usually cheap.'],
+  narrowed:['scope','narrowed since it was shelved',
+    'Later work rules some explanations out without settling it. The remaining question is sharper than the original one.'],
+  open:['out','nothing published since',
+    'The field has not touched this. Still a real question, and still nobody has answered it.']};
+
+async function viewRepo(){
+  const d=await api('/api/answerable');
+  const rows=d.rows||[];
+  const live=rows.filter(r=>r.overall==='resolved'||r.overall==='narrowed');
+  const rest=rows.filter(r=>!(r.overall==='resolved'||r.overall==='narrowed'));
+  const row=r=>`<tr class="row" data-go="#/result/${r.id}">
+      <td class="dot"><span class="mk ${r.overall?SINCE[r.overall][0]:''}"></span></td>
+      <td><a class="lk clip" style="display:block;text-decoration:none" href="#/result/${r.id}"
+          title="${esc(r.title)}">${esc(r.title)}</a>
+        <span class="tiny">${esc(r.lab||'')}${r.owner?' &middot; '+esc(r.owner):''}${
+          r.origin==='literature'?' &middot; from a paper':''}</span></td>
+      <td>${r.overall?`<span class="tag ${SINCE[r.overall][0]}">${SINCE[r.overall][1]}</span>`
+        :(r.read?'<span class="tag out">not re-checked</span>':'<span class="tag out">not read</span>')}</td>
+      <td>${r.n_newer?`<span class="tag acc">${r.n_newer} since</span>`:''}</td>
+      <td class="c">${r.assigned_to?esc(r.assigned_to.split(' ')[0]):(r.unclaimed?'free':'')}</td>
+      <td class="c">${r.year||''}</td></tr>
+    ${r.what_the_field_did?`<tr class="det hide"><td colspan="6"><div class="card">
+      <p class="why">${esc(r.what_the_field_did)}</p>
+      ${r.cheapest?`<div class="exp"><b>cheapest way back in</b><span>${esc(r.cheapest)}</span></div>`:''}
+      ${r.agent_was_right===false?`<p class="tiny">The agent's own top explanation did not hold up.</p>`:''}
+      <div><a href="#/result/${r.id}"><button class="pri sm">Open this result</button></a></div>
+    </div></td></tr>`:''}`;
+
+  $('#root').innerHTML=shell(
+    `<div><h1>Ready to pick up</h1>
+      <p class="lede">Every result in this repository that you can see, across ${
+        (d.labs||[]).length} ${(d.labs||[]).length===1?'lab':'labs'}, sorted by how much
+        the field has moved since it was shelved. A null whose literature has changed
+        is the cheapest project in science: the work is done, the question is sharper,
+        and nobody is competing for it.</p></div>`,`
+    <div class="stats">
+      <div class="stat lit"><span class="v">${d.n_resolved||0}</span>
+        <span class="l">now answered by later work</span></div>
+      <div class="stat"><span class="v">${d.n_narrowed||0}</span>
+        <span class="l">narrowed, not settled</span></div>
+      <div class="stat"><span class="v">${rows.length}</span>
+        <span class="l">results you can see</span></div>
+      <div class="stat"><span class="v">${(d.labs||[]).length}</span>
+        <span class="l">labs</span></div>
+    </div>
+
+    ${live.length?`<h2>The field moved under these <span class="n">${live.length}</span>
+      <span class="note">click a line for what happened</span></h2>
+      <table class="t"><colgroup><col style="width:22px"><col><col style="width:190px">
+        <col style="width:76px"><col style="width:58px"><col style="width:44px"></colgroup>
+      <thead><tr><th></th><th>Result</th><th>What happened since</th><th>New work</th>
+        <th class="c">Taken</th><th class="c">Year</th></tr></thead>
+      <tbody>${live.map(row).join('')}</tbody></table>`
+      :`<div class="empty"><b>Nothing re-checked yet.</b>
+        <p class="lede" style="margin:0">A result logged with an as-of date gets re-checked
+          by its agent: it explains the null using only the literature of the time, then goes
+          back and looks at what the field published afterwards. Run an agent to see it.</p></div>`}
+
+    ${rest.length?`<h2>Everything else <span class="n">${rest.length}</span></h2>
+      <table class="t"><colgroup><col style="width:22px"><col><col style="width:190px">
+        <col style="width:76px"><col style="width:58px"><col style="width:44px"></colgroup>
+      <tbody>${rest.map(row).join('')}</tbody></table>`:''}
+
+    <h2>What the marks mean</h2>
+    <table class="t"><colgroup><col style="width:22px"><col style="width:200px"><col></colgroup>
+      <tbody>${Object.keys(SINCE).map(k=>`<tr>
+        <td class="dot"><span class="mk ${SINCE[k][0]}"></span></td>
+        <td><span class="tag ${SINCE[k][0]}">${SINCE[k][1]}</span></td>
+        <td class="small">${SINCE[k][2]}</td></tr>`).join('')}</tbody></table>
+    `,'repo');
+  wire();expandable();
+  $$('tr.row[data-go]').forEach(el=>el.onclick=ev=>{
+    if(ev.target.closest('a'))return;
+    const det=el.nextElementSibling;
+    if(det&&det.classList.contains('det')){
+      const open=!det.classList.contains('hide');
+      det.classList.toggle('hide',open);el.classList.toggle('open',!open);return;}
+    location.hash=el.dataset.go;route();});
 }
 
 /* ---------------------------------------------------------------- literature
@@ -1035,7 +1125,12 @@ async function viewResult(id){
           <div><button class="sm" data-copy="${esc(x.ask)}">Copy message</button></div>`:''}
       </div></td></tr>`).join('')}</tbody></table>`:''}
 
+    ${sinceHtml(a.since,p)}
+
     <h2>Picking this up <span class="note">${p.pickup?'written for whoever comes next':'for a new student, or for you in two years'}</span></h2>
+    ${p.assigned_to_name?`<div class="verdict good"><span class="tag known">handed over</span>
+      <span class="vt">${esc(p.assigned_by||'Someone')} handed this to
+        <b>${esc(p.assigned_to_name)}</b>${p.assigned_note?' — '+esc(p.assigned_note):''}</span></div>`:''}
     ${p.pickup?pickupHtml(p.pickup):`
       <p class="small" style="margin-top:9px">The page above is written for the person who
         ran the experiment. Someone inheriting it needs different things: where it actually
@@ -1043,6 +1138,13 @@ async function viewResult(id){
         whether to continue.</p>
       <div class="toolbar"><button class="pri sm" id="mkPickup">Write the handover</button></div>`}
     <div id="puwait"></div>
+    ${(d.labmates||[]).length?`<div class="toolbar">
+      <select id="hoWho" style="max-width:220px"><option value="">hand this to…</option>
+        ${d.labmates.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>
+      <input id="hoNote" placeholder="one line on why them" style="flex:1;max-width:320px">
+      <button class="sm" id="hoGo">Hand it over</button></div>
+      <p class="tiny">They get it in their inbox with the handover attached, not a link
+        and a hope.</p>`:''}
 
     <h2>Methods and controls
       <span class="note">${(c.quality_flags||[]).length} quality flag${(c.quality_flags||[]).length===1?'':'s'}</span></h2>
@@ -1077,6 +1179,15 @@ async function viewResult(id){
   const mn=$('#moreNew');if(mn)mn.onclick=()=>{$('#newRest').classList.remove('hide');mn.remove()};
 
   const rn=$('#readNow');if(rn)rn.onclick=runAgent;
+  const hg=$('#hoGo');
+  if(hg)hg.onclick=async()=>{
+    const to=$('#hoWho').value;if(!to)return;
+    hg.disabled=true;
+    const tick=waiting($('#puwait'),'writing the handover for them');
+    try{const {job}=await api('/api/handoff',{method:'POST',
+        body:JSON.stringify({id,to,note:$('#hoNote').value.trim()})});
+      await poll(job,tick);route();
+    }catch(e){$('#puwait').innerHTML=`<div class="err">${esc(e.message)}</div>`;hg.disabled=false}};
   const cl=$('#claim');
   if(cl)cl.onclick=async()=>{cl.disabled=true;
     await api('/api/result/claim',{method:'POST',body:JSON.stringify({id})});route()};
@@ -1121,6 +1232,39 @@ async function viewResult(id){
     const note=($('#csnote')?.value||'').trim();
     try{await api('/api/result/cosign',{method:'POST',body:JSON.stringify({id,note})});route()}
     catch(e){cs.disabled=false;alert(e.message)}};
+}
+
+
+/* The check that makes the claim falsifiable: the agent reasoned with the
+   literature of the time, and this is what the field went on to publish. */
+function sinceHtml(sc,p){
+  if(!sc)return '';
+  const V={supported:['known','held up'],contradicted:['art','contradicted'],
+    superseded:['scope','superseded'],untouched:['','nothing bears on it']};
+  const o=sc.overall||'open';
+  return `<h2>What the field did since ${esc(p.as_of||p.card.year||'')}
+      <span class="note">the agent could not see any of this when it reasoned</span></h2>
+    <div class="verdict ${o==='resolved'?'good':o==='narrowed'?'':'warn'}">
+      <span class="tag ${SINCE[o]?SINCE[o][0]:'out'}">${esc(SINCE[o]?SINCE[o][1]:o)}</span>
+      <span class="vt">${esc(sc.what_the_field_did||'')}</span></div>
+    ${sc.agent_was_right!=null?`<p class="small" style="margin-top:9px">Its own top explanation
+      <b>${sc.agent_was_right?'held up':'did not hold up'}</b>.${
+      sc.best_missed?' What it should have proposed: '+esc(sc.best_missed):''}</p>`:''}
+    ${(sc.verdicts||[]).length?`<table class="t" style="margin-top:12px">
+      <colgroup><col style="width:22px"><col style="width:128px"><col><col style="width:44px"></colgroup>
+      <thead><tr><th></th><th>Explanation</th><th>What later work did to it</th><th class="c">Refs</th></tr></thead>
+      <tbody>${sc.verdicts.map(v=>{
+        const k=V[v.verdict]||['',v.verdict||''];
+        return `<tr class="row">
+          <td class="dot"><span class="mk ${k[0]}"></span></td>
+          <td><span class="tag ${k[0]||'out'}">${esc(k[1])}</span>
+            <span class="tiny" style="display:block">ranked ${v.rank}</span></td>
+          <td class="clip" title="${esc(v.why||'')}">${esc(v.why||'')}</td>
+          <td class="c">${(v.papers||[]).length}</td></tr>
+        <tr class="det hide"><td colspan="4"><div class="card">
+          <p class="why">${esc(v.why||'')}</p>
+          ${(v.papers||[]).length?`<div class="refs">${v.papers.map(x=>refHtml(x)).join('')}</div>`:''}
+        </div></td></tr>`}).join('')}</tbody></table>`:''}`;
 }
 
 /* The handover. Different reader, different page: cost and stopping rules

@@ -131,6 +131,12 @@ def problem(scientist_id, card, **kw):
         "source_paper": kw.get("source_paper"),      # set when mined from a paper
         "unclaimed": kw.get("unclaimed", False),     # mined, nobody has adopted it
         "pickup": kw.get("pickup"),                  # inheritance brief, when asked for
+        # Set when the null is old enough that the field has already answered
+        # it. The agent is then held to the literature of that year, so its
+        # explanation can be checked against what came after.
+        "as_of": kw.get("as_of"),
+        "assigned_to": kw.get("assigned_to"),
+        "assigned_to_name": kw.get("assigned_to_name"),
     }
     return put("problems", rec)
 

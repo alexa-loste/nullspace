@@ -91,6 +91,38 @@ LABS = [
                  interests=["what counts as absence in a mass spectrum"]),
         ],
     },
+    # These two exist so that everyone in the world belongs to a lab and the
+    # network is genuinely cross-institutional. They are not mined: four
+    # topics is already more published nulls than a demo can show.
+    {
+        "lab": "Vanchev Lab",
+        "topic": None,
+        "members": [
+            dict(name="Mirela Vanchev", field="translational control and ribosome biochemistry",
+                 institution="Demo persona", demo_persona=True, role="senior",
+                 adjacent_fields=["bacterial genetics", "RNA biology"],
+                 techniques=["dual-luciferase frameshift reporter assays", "ribosome profiling",
+                             "in vitro translation with reconstituted systems"],
+                 equipment=["luminometer", "sucrose gradient fractionation"],
+                 can_offer=["measuring programmed ribosomal frameshifting efficiency",
+                            "distinguishing frameshifting from transcriptional realignment"],
+                 interests=["recoding in bacteria"]),
+        ],
+    },
+    {
+        "lab": "Beisel Lab",
+        "topic": None,
+        "members": [
+            dict(name="Hannah Beisel", field="clinical genetics of nonsense and frameshift variants",
+                 institution="Demo persona", demo_persona=True, role="senior",
+                 adjacent_fields=["human genetics", "translational control"],
+                 techniques=["variant interpretation", "patient cohort phenotyping",
+                             "readthrough quantification in patient cells"],
+                 equipment=["clinical sequencing pipeline"],
+                 can_offer=["saying whether a predicted-null allele behaves as one in patients"],
+                 interests=["why some truncating variants are mild"]),
+        ],
+    },
     {
         "lab": "Okonjo Lab",
         "topic": "directed evolution protein engineering library screening",
@@ -130,6 +162,8 @@ def file_nulls(people, per_lab, dry_run=False):
     """Mine each lab's field for published nulls and file them under its senior."""
     total = 0
     for lab in LABS:
+        if not lab.get("topic"):
+            continue
         owner = next(s for s in people[lab["lab"]] if s.get("role") == "senior")
         print(f"\n{lab['lab']} — mining “{lab['topic']}” capped at {AS_OF}")
         if dry_run:
