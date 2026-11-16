@@ -38,6 +38,21 @@ Nothing on this screen is on a timer — a card changes in the year the paper th
 changed it came out. This is what already happened to this literature, and
 nobody was watching it happen.*
 
+Then press **Watch one happen**. The year rewinds to just before one null
+changed, and the agent's run plays out at a speed a room can read: the searches
+it wrote, the papers published after the cap that it could not have seen, and
+then its own explanations graded one by one — held up, contradicted, nothing
+bears on it. The card changes behind the panel and the notification fires.
+
+Nothing in that replay is invented. The queries are the queries the agent wrote
+and the papers are the ones the search returned; the only thing added is pacing,
+because nobody should watch a three-minute model call from the back of a room.
+Say that out loud — it is the difference between this and a mock-up.
+
+The moment worth pausing on is **CONTRADICTED · RANKED 3**. The agent's own
+third explanation was wrong, and later work says so. A demo where the agent is
+right about everything is a demo nobody believes.
+
 Then stop on one card and open it. That is Act 1.
 
 ---

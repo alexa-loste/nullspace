@@ -476,6 +476,45 @@ class Handler(BaseHTTPRequestHandler):
                            if s.get("lab") == my_lab and s["id"] != me["id"]],
             })
 
+        if p == "/api/replay":
+            # A run that already happened, handed back as steps so it can be
+            # played at a speed a room can watch. Nothing here is invented:
+            # the queries are the queries the agent wrote and the papers are
+            # the ones the search returned. The only thing added is pacing.
+            pr = store.get("problems", (q.get("id") or [""])[0])
+            if not pr:
+                return self.json({"error": "not found"}, 404)
+            b = store.get("briefs", pr["brief_id"]) if pr.get("brief_id") else None
+            if not b:
+                return self.json({"error": "nothing has been run on this"}, 404)
+            since = b.get("since") or {}
+            card, as_of = pr["card"], pr.get("as_of")
+            steps = [{"k": "head", "t": f"Checking “{(card.get('title') or '')[:64]}”",
+                      "d": f"shelved {card.get('year') or '?'}"}]
+            for qq in (b.get("queries") or [])[:5]:
+                if qq.get("q"):
+                    steps.append({"k": "q", "t": qq["q"], "d": qq.get("kind") or ""})
+            newer = since.get("papers") or []
+            if as_of:
+                steps.append({"k": "note",
+                              "t": f"searching for work published after {as_of}"})
+            for pp in newer[:7]:
+                steps.append({"k": "p", "t": (pp.get("title") or "")[:110],
+                              "d": f"{pp.get('year') or ''} · {pp.get('venue') or ''}"})
+            if newer:
+                steps.append({"k": "note", "t": f"{len(newer)} papers it could not have seen"})
+            for v in (since.get("verdicts") or [])[:5]:
+                steps.append({"k": "v", "t": (v.get("why") or "")[:170],
+                              "d": v.get("verdict") or "", "rank": v.get("rank")})
+            steps.append({"k": "end", "t": since.get("what_the_field_did") or "",
+                          "d": since.get("overall") or "open",
+                          "scooped": bool(since.get("someone_else_published_it"))})
+            return self.json({
+                "id": pr["id"], "title": card.get("title"),
+                "ran": b.get("created"), "as_of": as_of,
+                "overall": since.get("overall"), "steps": steps,
+            })
+
         if p == "/api/connections":
             # Anchored on the result, not the person. Two agents agreeing their
             # scientists should collaborate is not how collaborations start; a

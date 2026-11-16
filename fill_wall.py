@@ -20,6 +20,25 @@ import store
 
 AS_OF = 2021
 
+# Nulls old enough that the field has had a decade or more to answer them.
+# A 2021 null has had four years, which is rarely enough for anything to be
+# settled; these are from before the methods that answered them existed, which
+# is why they are the ones that go green. Each topic is an area where the
+# answer arrived from a new technique rather than from more of the same work.
+OLD_AS_OF = 2010
+OLD_TOPICS = [
+    ("Rask Lab", "membrane protein crystallisation failed diffraction structure determination"),
+    ("Rask Lab", "protein structure prediction homology modelling accuracy limitation"),
+    ("Okonjo Lab", "protein engineering rational design failed to improve activity"),
+    ("Okonjo Lab", "enzyme mechanism disputed inconclusive kinetics"),
+    ("Dufort Lab", "plant cytochrome P450 heterologous expression inactive E. coli"),
+    ("Dufort Lab", "biosynthetic gene cluster silent no product detected"),
+    ("Isaacs Lab", "unculturable bacteria could not be grown in pure culture"),
+    ("Isaacs Lab", "gene therapy vector immune response unexplained"),
+    ("Vanchev Lab", "ribosome structure heterogeneity could not be resolved"),
+    ("Beisel Lab", "genotype phenotype correlation absent unexplained variability"),
+]
+
 # Deliberately spread across fields. A wall where every null is from one
 # subfield would show that this works for synthetic biology, not that it works.
 TOPICS = [
@@ -45,21 +64,26 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--per-topic", type=int, default=16)
     ap.add_argument("--sweep-only", action="store_true")
+    ap.add_argument("--old", action="store_true",
+                    help="mine pre-2010 nulls, which are the ones that have gone green")
     ap.add_argument("--sweep-limit", type=int, default=60)
     a = ap.parse_args()
 
     t0 = time.time()
     filed = 0
 
+    topics = OLD_TOPICS if a.old else TOPICS
+    as_of = OLD_AS_OF if a.old else AS_OF
+
     if not a.sweep_only:
-        for lab, topic in TOPICS:
+        for lab, topic in topics:
             owner = owner_for(lab)
             if not owner:
                 print(f"skipping {lab}: nobody in it")
                 continue
             print(f"\n=== {lab}: {topic}", flush=True)
             try:
-                cards = mine.mine(topic, n_papers=a.per_topic, to_year=AS_OF,
+                cards = mine.mine(topic, n_papers=a.per_topic, to_year=as_of,
                                   on_progress=lambda m, data=None: print(f"  {str(m)[:130]}",
                                                                          flush=True))
             except Exception as exc:  # noqa: BLE001 - one bad topic must not end the run
@@ -70,7 +94,7 @@ def main():
                 paper = card.pop("source_paper", None)
                 card.pop("unclaimed", None)
                 card.pop("source", None)
-                year = (paper or {}).get("year") or card.get("year") or AS_OF
+                year = (paper or {}).get("year") or card.get("year") or as_of
                 card["year"] = year
                 store.problem(owner["id"], card, origin="literature", unclaimed=True,
                               source_paper=paper, visibility="public", as_of=year)

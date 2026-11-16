@@ -225,6 +225,44 @@ mark{background:var(--marker);color:var(--ink);padding:0 2px}
 .tally{margin-left:auto;font-size:13px;color:var(--soft)}
 
 
+
+/* ---- replay: a run that already happened, paced so a room can watch ---- */
+.rp{position:fixed;inset:0;background:rgba(10,12,20,.55);z-index:40;display:flex;
+  align-items:center;justify-content:center;padding:24px}
+.rp .box{background:var(--paper);border:1px solid var(--line-2);max-width:680px;width:100%;
+  max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.rp .top{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;
+  align-items:baseline;gap:10px}
+.rp .top b{font-family:var(--head);font-size:18px;font-weight:700}
+.rp .top .x{margin-left:auto}
+.rp .feed{padding:10px 18px 18px;overflow:auto;flex:1}
+.rp .ln{display:flex;gap:10px;padding:6px 0;font-size:14px;line-height:1.45;
+  opacity:0;transform:translateY(5px);animation:rin .3s ease forwards}
+@keyframes rin{to{opacity:1;transform:none}}
+.rp .ln .ic{flex:none;width:15px;text-align:center;font-family:var(--mono);font-size:11px;
+  color:var(--faint);padding-top:3px}
+.rp .ln.q{font-family:var(--mono);font-size:12.5px;color:var(--accent)}
+.rp .ln.p{color:var(--soft);font-size:13.5px}
+.rp .ln.note{color:var(--faint);font-size:12.5px;text-transform:uppercase;
+  letter-spacing:.6px;font-weight:600;padding-top:10px}
+.rp .ln.v b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.6px}
+.rp .ln.v.supported b{color:#2f7d4f} .rp .ln.v.contradicted b{color:#9b3a3a}
+.rp .ln.v.superseded b{color:#a3741f} .rp .ln.v.untouched b{color:var(--faint)}
+.rp .fin{margin-top:14px;border:1px solid var(--line);border-left:3px solid var(--accent);
+  background:var(--surface);padding:13px 15px;font-size:15px;line-height:1.5}
+.rp .fin.green{border-left-color:#2f7d4f} .rp .fin.amber{border-left-color:#c08a2a}
+.rp .fin.red{border-left-color:#9b3a3a}
+.rp .fin b{display:block;font-family:var(--head);font-size:17px;margin-bottom:4px}
+.toast{position:fixed;right:22px;bottom:22px;z-index:50;max-width:380px;
+  border:1px solid var(--line-2);border-left:3px solid #2f7d4f;background:var(--surface);
+  padding:13px 15px;box-shadow:0 10px 34px rgba(0,0,0,.22);
+  animation:tin .4s cubic-bezier(.2,.9,.3,1.2) forwards}
+@keyframes tin{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.toast .w{font-size:11px;text-transform:uppercase;letter-spacing:.7px;font-weight:600;
+  color:#2f7d4f;margin-bottom:3px}
+.toast .t{font-size:14.5px;line-height:1.4;font-weight:500}
+.toast .b{font-size:13px;color:var(--soft);line-height:1.45;margin-top:4px;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 /* ---- the wall: one card per result, because a square with a colour on it
    is not a unit of science. The card carries what was expected, what was seen,
    and what the field has since done about it. ---- */
@@ -832,6 +870,68 @@ async function viewRecord(){
 }
 
 
+
+/* ---------------------------------------------------------------- replay
+   A run that already happened, played at a speed a room can watch. The
+   queries are the queries the agent wrote and the papers are the ones the
+   search returned; the only thing added is pacing. Nobody should have to
+   watch a three-minute model call from the back of a room, and nobody should
+   have to take the result on trust either. */
+async function replay(id,after){
+  let d;
+  try{d=await api('/api/replay?id='+id);}catch(e){return;}
+  const o=document.createElement('div');o.className='rp';
+  o.innerHTML=`<div class="box">
+    <div class="top"><b>Your agent, checking what changed</b>
+      <span class="small">replay of a run from ${d.as_of?'literature capped at '+d.as_of:'this repository'}</span>
+      <button class="sm x" id="rpx">Close</button></div>
+    <div class="feed" id="rpf"></div></div>`;
+  document.body.appendChild(o);
+  const close=()=>{o.remove();document.removeEventListener('keydown',esckey)};
+  const esckey=e=>{if(e.key==='Escape')close()};
+  document.addEventListener('keydown',esckey);
+  $('#rpx',o).onclick=close;
+  o.onclick=e=>{if(e.target===o)close()};
+
+  const feed=$('#rpf',o);
+  const ICON={q:'?',p:'·',note:'',v:'!',head:'',end:''};
+  for(const st of d.steps){
+    await new Promise(r=>setTimeout(r,st.k==='q'?420:st.k==='p'?230:st.k==='v'?700:520));
+    if(st.k==='end'){
+      const cls=st.scooped?'red':st.d==='resolved'?'green':st.d==='narrowed'?'amber':'';
+      const word=st.scooped?'Someone else published it'
+        :st.d==='resolved'?'This can be revisited now'
+        :st.d==='narrowed'?'The question got sharper'
+        :'Still nobody has answered it';
+      const el=document.createElement('div');
+      el.className='fin '+cls;
+      el.innerHTML=`<b>${esc(word)}</b>${esc(st.t)}`;
+      feed.appendChild(el);
+      if(cls==='green'||cls==='amber')notify(d.title,word,st.t);
+      if(after)after(st.d,st.scooped);
+      break;
+    }
+    const el=document.createElement('div');
+    el.className='ln '+st.k;
+    el.innerHTML=`<span class="ic">${ICON[st.k]||''}</span><span>${
+      st.k==='v'?`<b>${esc(st.d||'')}${st.rank?' · ranked '+st.rank:''}</b>`:''}${esc(st.t)}${
+      st.d&&st.k!=='v'?`<span class="tiny" style="display:block">${esc(st.d)}</span>`:''}</span>`;
+    if(st.k==='v')el.classList.add(st.d||'');
+    feed.appendChild(el);
+    feed.scrollTop=feed.scrollHeight;
+  }
+}
+/* The notification the researcher would actually get. */
+function notify(title,word,body){
+  const t=document.createElement('div');t.className='toast';
+  t.innerHTML=`<div class="w">${esc(word)}</div>
+    <div class="t">${esc(title||'')}</div>
+    <div class="b">${esc(body||'')}</div>`;
+  document.body.appendChild(t);
+  t.onclick=()=>t.remove();
+  setTimeout(()=>t.remove(),11000);
+}
+
 /* ---------------------------------------------------------------- wall
    The aggregate claim in one screen, as units rather than pixels. Each card is
    a result somebody actually has: what they expected, what they saw. Drag the
@@ -855,7 +955,8 @@ async function viewGrid(){
     <div class="scrub">
       <span class="yr" id="gy">${GY}</span>
       <input type="range" id="gsl" min="${y0}" max="${y1}" step="1" value="${GY}">
-      <button class="sm" id="gplay">Play</button></div>
+      <button class="sm" id="gplay">Play</button>
+      <button class="sm" id="grep">Watch one happen</button></div>
     <div class="keys">
       <span><b style="background:var(--line-2)"></b>shelved, nothing since</span>
       <span><b style="background:#c08a2a"></b>question narrowed</span>
@@ -881,6 +982,18 @@ async function viewGrid(){
       if(y>y1){clearInterval(t);return;}
       GY=y;sl.value=y;$('#gy').textContent=y;paintGrid(rows);y++;},700);};
   $$('#gfilt [data-f]').forEach(b=>b.onclick=()=>{GFILT=b.dataset.f;viewGrid();});
+  /* Rewind to just before the chosen null changed, so the room sees the card
+     grey, watches the run, and sees it change. */
+  $('#grep').onclick=()=>{
+    const cand=rows.filter(r=>r.changed_in&&r.overall&&r.overall!=='open')
+      .sort((x,y)=>(y.n_newer||0)-(x.n_newer||0))[0]
+      || rows.filter(r=>r.overall).sort((x,y)=>(y.n_newer||0)-(x.n_newer||0))[0];
+    if(!cand)return;
+    GY=Math.max((cand.changed_in||cand.year||2020)-1,+sl.min);
+    sl.value=GY;$('#gy').textContent=GY;paintGrid(rows);
+    replay(cand.id,()=>{GY=cand.changed_in||GY;sl.value=GY;
+      $('#gy').textContent=GY;paintGrid(rows);});
+  };
 }
 /* A card is grey until the work that changes it exists. Nothing is coloured
    before its own evidence is published. */
