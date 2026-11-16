@@ -1,0 +1,1628 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nullspace</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@600;700&display=swap">
+<style>
+/* Hierarchy carries the granularity: a condensed display face for structure,
+   dense tabular rows for scanning, detail revealed in place on click. */
+:root{
+  --paper:#fcfcfb; --surface:#ffffff; --tint:#f1f2f5; --sunken:#e9eaef;
+  --line:#dcdfe7; --line-2:#c6cad6;
+  --ink:#171a24; --soft:#5a6072; --faint:#8b91a1;
+  --band:#14284b; --band-ink:#ffffff; --band-soft:#c4cede; --tab-idle:rgba(255,255,255,.14);
+  --accent:#24508f; --accent-bg:#e4ebf7;
+  --k-mech:#1d3f73; --k-mech-bg:#dfe8f7;
+  --k-art:#7c2636; --k-art-bg:#f7e0e3;
+  --k-scope:#734b0c; --k-scope-bg:#f7e8cf;
+  --k-known:#1d5c38; --k-known-bg:#dcefe3;
+  --k-none:#454b59; --k-none-bg:#e6e8ec;
+  --marker:#fff0a0;
+  --head:"Barlow Semi Condensed",Arial Narrow,Arial,sans-serif;
+  --body:"Barlow",-apple-system,BlinkMacSystemFont,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#14161f; --surface:#1a1d27; --tint:#1e2130; --sunken:#262a38;
+  --line:#2d3142; --line-2:#3d4254;
+  --ink:#eceef4; --soft:#a5abbc; --faint:#777e90;
+  --band:#101a30; --accent:#7ba3dd; --accent-bg:#1d2b45;
+  --k-mech:#cfdcf3; --k-mech-bg:#223555;
+  --k-art:#f3cfd5; --k-art-bg:#4d2530;
+  --k-scope:#f2dcb3; --k-scope-bg:#4a3717;
+  --k-known:#c7e8d3; --k-known-bg:#1f3f2e;
+  --k-none:#d6d9e0; --k-none-bg:#2f3340;
+  --marker:#5c5220;
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --paper:#14161f; --surface:#1a1d27; --tint:#1e2130; --sunken:#262a38;
+  --line:#2d3142; --line-2:#3d4254;
+  --ink:#eceef4; --soft:#a5abbc; --faint:#777e90;
+  --band:#101a30; --accent:#7ba3dd; --accent-bg:#1d2b45;
+  --k-mech:#cfdcf3; --k-mech-bg:#223555;
+  --k-art:#f3cfd5; --k-art-bg:#4d2530;
+  --k-scope:#f2dcb3; --k-scope-bg:#4a3717;
+  --k-known:#c7e8d3; --k-known-bg:#1f3f2e;
+  --k-none:#d6d9e0; --k-none-bg:#2f3340;
+  --marker:#5c5220;
+  color-scheme:dark;}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:400 16.5px/1.5 var(--body);font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased}
+a{color:inherit;text-underline-offset:3px}
+a.lk{color:var(--accent)}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{
+  outline:2px solid currentColor;outline-offset:2px}
+
+/* ---- type scale: structure, then body, then data ---- */
+h1{font-family:var(--head);font-weight:700;font-size:clamp(22px,2.6vw,29px);
+  line-height:1.1;margin:0;letter-spacing:.1px;text-wrap:balance}
+h2{font-family:var(--head);font-weight:700;font-size:20px;line-height:1.15;
+  margin:34px 0 0;padding-bottom:5px;border-bottom:2px solid var(--ink);
+  display:flex;align-items:baseline;gap:9px}
+h2 .n{font-family:var(--body);font-weight:500;font-size:13px;color:var(--soft)}
+h2 .note{margin-left:auto;font-family:var(--body);font-weight:400;font-size:12.5px;
+  color:var(--faint)}
+h3{font-family:var(--head);font-weight:600;font-size:16px;margin:20px 0 4px}
+p{margin:9px 0;max-width:68ch}
+.lede{font-size:15.5px;color:var(--soft);line-height:1.55;max-width:66ch;margin:6px 0 0}
+.small{font-size:13px;color:var(--soft)}
+.tiny{font-size:12px;color:var(--faint)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums slashed-zero}
+
+button{font:500 14.5px/1 var(--body);color:var(--ink);background:var(--surface);
+  border:1px solid var(--line-2);border-radius:2px;padding:7px 12px;cursor:pointer;
+  white-space:nowrap}
+button:hover:not(:disabled){background:var(--tint)}
+button:disabled{opacity:.45;cursor:default}
+button.pri{background:var(--band);border-color:var(--band);color:#fff}
+button.pri:hover:not(:disabled){background:#1d3663}
+button.bare{border-color:transparent;background:transparent;color:var(--accent);
+  text-decoration:underline;padding:5px 2px}
+button.sm{font-size:13px;padding:5px 9px}
+input,textarea,select{font:400 15px var(--body);color:var(--ink);background:var(--surface);
+  border:1px solid var(--line-2);border-radius:2px;padding:8px 10px;width:100%}
+textarea{resize:vertical;line-height:1.5}
+input:focus,textarea:focus{outline:none;border-color:var(--accent)}
+::placeholder{color:var(--faint)}
+
+/* ---- shell ---- */
+.app{display:grid;grid-template-columns:208px minmax(0,1fr);min-height:100%}
+@media(max-width:820px){.app{grid-template-columns:minmax(0,1fr)}.rail{display:none}}
+.rail{background:var(--band);color:var(--band-ink);padding:18px 12px;
+  display:flex;flex-direction:column;gap:2px;position:sticky;top:0;height:100vh}
+.mark{font-family:var(--head);font-weight:700;font-size:19px;padding:0 8px 2px;
+  letter-spacing:.2px}
+.mark small{display:block;font-family:var(--body);font-weight:400;font-size:12px;
+  color:var(--band-soft);letter-spacing:0;margin-top:1px}
+.rsec{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--band-soft);
+  font-weight:600;padding:16px 8px 4px}
+.rail a.nav{display:flex;gap:8px;padding:5px 8px;border-radius:2px;font-size:14.5px;
+  color:var(--band-soft);text-decoration:none}
+.rail a.nav:hover{background:var(--tab-idle);color:#fff}
+.rail a.nav.on{background:var(--paper);color:var(--ink);font-weight:600}
+.rail a.nav .n{margin-left:auto;font-size:12.5px;opacity:.75}
+.rfoot{margin-top:auto;padding:10px 8px 0;border-top:1px solid rgba(255,255,255,.16);
+  font-size:12px;color:var(--band-soft);line-height:1.5}
+
+.bar{border-bottom:1px solid var(--line);padding:14px 26px 13px;display:flex;
+  align-items:flex-start;gap:14px;background:var(--paper);position:sticky;top:0;z-index:5}
+.bar .who{font-size:13px;color:var(--soft);white-space:nowrap;padding-top:6px}
+.grow{flex:1;min-width:0}
+.body{padding:18px 26px 70px;max-width:1080px}
+
+/* ---- the result itself, first thing on the page ---- */
+.facts{display:grid;grid-template-columns:78px minmax(0,1fr);gap:0 16px;
+  border-top:1px solid var(--line);margin:14px 0 0}
+.facts dt{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--faint);
+  font-weight:600;padding:9px 0 9px;border-bottom:1px solid var(--line)}
+.facts dd{margin:0;padding:9px 0;border-bottom:1px solid var(--line);
+  font-size:15px;line-height:1.5}
+@media(max-width:620px){.facts{grid-template-columns:minmax(0,1fr)}
+  .facts dt{border-bottom:0;padding-bottom:0}}
+
+.verdict{display:flex;gap:11px;align-items:baseline;margin:14px 0 0;
+  padding:11px 13px;background:var(--surface);border:1px solid var(--line);
+  border-left:3px solid var(--accent)}
+.verdict.warn{border-left-color:#b07d1c}
+.verdict.good{border-left-color:#1d5c38}
+.verdict .vt{font-size:15px;line-height:1.5;max-width:74ch}
+
+/* ---- tables: one line per thing, detail opens beneath ---- */
+table.t{border-collapse:collapse;width:100%;font-size:14.5px;line-height:1.35;
+  margin-top:0;table-layout:fixed}
+table.t th{text-align:left;font:600 12px var(--body);color:var(--soft);
+  padding:7px 8px;border-bottom:1px solid var(--line-2);
+  text-transform:uppercase;letter-spacing:.6px}
+table.t td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.row{cursor:pointer}
+tr.row:hover td{background:var(--tint)}
+tr.row.open td{background:var(--tint);border-bottom-color:transparent}
+tr.det>td{background:var(--tint);padding:0 8px 20px;border-bottom:1px solid var(--line)}
+.clip{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.c{text-align:right;white-space:nowrap;color:var(--soft);font-size:13px}
+td.dot{padding-left:10px}
+.mk{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.mk.mech{background:var(--k-mech)} .mk.art{background:var(--k-art)}
+.mk.scope{background:var(--k-scope)} .mk.known{background:var(--k-known)}
+
+.tag{display:inline-block;font-size:12px;font-weight:500;line-height:1.3;
+  padding:1px 6px;border-radius:2px;white-space:nowrap;background:var(--k-none-bg);color:var(--k-none)}
+.tag.mech{background:var(--k-mech-bg);color:var(--k-mech)}
+.tag.art{background:var(--k-art-bg);color:var(--k-art)}
+.tag.scope{background:var(--k-scope-bg);color:var(--k-scope)}
+.tag.known{background:var(--k-known-bg);color:var(--k-known)}
+.tag.acc{background:var(--accent-bg);color:var(--accent)}
+.tag.out{background:transparent;color:var(--soft);box-shadow:inset 0 0 0 1px var(--line-2)}
+
+.bars{display:inline-flex;gap:1.5px;align-items:flex-end;height:11px}
+.bars i{width:3px;background:var(--line-2);display:block}
+.bars i.on{background:var(--accent)}
+
+/* ---- detail card inside an expanded row ---- */
+.card{display:grid;gap:12px;padding-top:4px;min-width:0}
+.card .why{font-size:15px;line-height:1.55;max-width:72ch;margin:0}
+.card .ev{font-size:14px;line-height:1.5;color:var(--soft);max-width:72ch;margin:0;
+  border-left:2px solid var(--line-2);padding-left:11px}
+.refs{display:grid;gap:0}
+.ref{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;padding:6px 0;
+  border-top:1px solid var(--line);font-size:14px;line-height:1.4}
+.ref .y{font-family:var(--mono);font-size:12.5px;color:var(--faint)}
+.ref .m{display:block;font-size:12.5px;color:var(--faint);margin-top:1px}
+.ref .f{display:block;font-size:11.5px;color:var(--faint);font-family:var(--mono);
+  margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.exp{background:var(--surface);border:1px solid var(--line);padding:10px 12px;max-width:74ch}
+.exp b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;
+  color:#1d5c38;margin-bottom:3px;font-weight:600}
+.exp span{font-size:14.5px;line-height:1.5;color:var(--soft)}
+.msg{background:var(--surface);border:1px solid var(--line);padding:10px 12px;
+  font-size:14.5px;line-height:1.55;color:var(--soft);max-width:74ch}
+mark{background:var(--marker);color:var(--ink);padding:0 2px}
+
+/* ---- forms, interview, misc ---- */
+.drop{border:1px dashed var(--line-2);background:var(--surface);padding:26px 18px;
+  text-align:center}
+.drop.over{border-color:var(--accent);background:var(--accent-bg)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:13.5px;padding:5px 10px;border:1px solid var(--line-2);background:var(--surface);
+  color:var(--ink);cursor:pointer;border-radius:2px}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.turn{padding:10px 0;border-bottom:1px solid var(--line)}
+.turn .w{font-size:11px;text-transform:uppercase;letter-spacing:.7px;font-weight:600;
+  color:var(--faint);margin-bottom:3px}
+.turn.q .w{color:var(--accent)}
+.turn .tx{font-size:15.5px;line-height:1.5}
+.turn.a .tx{color:var(--soft)}
+.rec .pulse{display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:#9b3a3a;margin-right:5px}
+.rec.on .pulse{animation:p 1.1s ease-in-out infinite}
+@keyframes p{50%{opacity:.25}}
+.sk{background:linear-gradient(90deg,var(--tint) 25%,var(--sunken) 50%,var(--tint) 75%);
+  background-size:200% 100%;animation:sh 1.3s linear infinite;height:11px}
+@keyframes sh{to{background-position:-200% 0}}
+.log{font-family:var(--mono);font-size:12.5px;color:var(--soft);line-height:1.6;
+  max-height:170px;overflow:auto;border:1px solid var(--line);background:var(--surface);
+  padding:9px 11px}
+.log .ind{padding-left:14px;color:var(--faint)}
+.wait{display:flex;align-items:center;gap:10px;padding:12px 0}
+.empty{padding:40px 2px;color:var(--soft);font-size:15px}
+.empty b{display:block;font-family:var(--head);font-weight:600;font-size:18px;
+  color:var(--ink);margin-bottom:4px}
+.err{border:1px solid #d9b3b3;background:#f7ecec;color:#7a2e2e;padding:10px 12px;
+  font-size:14px;margin:10px 0}
+.hide{display:none}
+.center{max-width:480px;margin:10vh auto;padding:0 22px}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0 0}
+.tally{margin-left:auto;font-size:13px;color:var(--soft)}
+
+/* ---- landing: wide, so the product is visible before anyone signs up ---- */
+.land{max-width:860px;margin:0 auto;padding:46px 26px 80px}
+.hero h1{font-size:clamp(30px,5vw,46px);letter-spacing:-.2px}
+.hero .sub{font-size:19px;line-height:1.45;color:var(--soft);max-width:34em;margin:12px 0 0}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:34px;
+  border-top:1px solid var(--line)}
+@media(max-width:700px){.steps{grid-template-columns:minmax(0,1fr)}}
+.steps .s{padding:16px 18px 18px 0;border-right:1px solid var(--line)}
+.steps .s:last-child{border-right:0}
+@media(max-width:700px){.steps .s{border-right:0;border-bottom:1px solid var(--line);
+  padding-right:0}}
+.steps .s .k{font-family:var(--mono);font-size:12px;color:var(--faint);display:block;
+  margin-bottom:6px}
+.steps .s b{font-family:var(--head);font-weight:600;font-size:17px;display:block;
+  margin-bottom:4px}
+.steps .s span{font-size:14.5px;color:var(--soft);line-height:1.5}
+.peek{border:1px solid var(--line);background:var(--surface);margin-top:34px}
+.peek .ph{padding:9px 14px;border-bottom:1px solid var(--line);font-size:11.5px;
+  text-transform:uppercase;letter-spacing:.8px;color:var(--faint);font-weight:600;
+  background:var(--tint)}
+
+/* ---- stepper: onboarding that says where you are ---- */
+.stepper{display:flex;gap:0;align-items:center;margin:0 0 6px;font-size:12px;
+  color:var(--faint);font-weight:500}
+.stepper i{font-style:normal;padding:3px 0;margin-right:16px;position:relative}
+.stepper i.on{color:var(--accent);font-weight:600}
+.stepper i.done{color:var(--soft)}
+
+/* ---- the "do this next" card: one decision per block ---- */
+.picks{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;
+  margin-top:14px}
+.pick{border:1px solid var(--line);background:var(--surface);padding:14px 15px;
+  text-align:left;display:block;width:100%;cursor:pointer;border-radius:2px}
+.pick:hover{border-color:var(--accent);background:var(--accent-bg)}
+.pick b{font-family:var(--head);font-weight:600;font-size:16.5px;display:block;
+  margin-bottom:3px}
+.pick span{font-size:14px;color:var(--soft);line-height:1.45;display:block;white-space:normal}
+
+/* ---- home: counters that state what changed, not decoration ---- */
+.stats{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);margin-top:16px}
+.stat{padding:11px 22px 11px 0;margin-right:22px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:0}
+.stat .v{font-family:var(--head);font-weight:700;font-size:25px;line-height:1.1;
+  display:block}
+.stat .l{font-size:12.5px;color:var(--soft)}
+.stat.lit .v{color:var(--accent)}
+
+/* ---- visibility: a tier is a decision, so it looks like one ---- */
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:2px;overflow:hidden}
+.seg button{border:0;border-right:1px solid var(--line-2);border-radius:0;
+  padding:6px 11px;font-size:13.5px;background:var(--surface)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--band);color:#fff}
+.gate{border:1px solid var(--line);border-left:3px solid #b07d1c;background:var(--surface);
+  padding:11px 13px;margin-top:10px;font-size:14px;line-height:1.5;color:var(--soft);
+  max-width:74ch}
+.gate b{color:var(--ink)}
+.sign{display:flex;gap:9px;align-items:center;font-size:13.5px;color:var(--soft);
+  padding:7px 0;border-bottom:1px solid var(--line)}
+.rng{display:flex;align-items:center;gap:12px;max-width:430px;margin-top:9px}
+.rng input[type=range]{flex:1;width:auto;padding:0;border:0;background:transparent;
+  accent-color:var(--accent)}
+.rng .v{font-family:var(--mono);font-size:15px;min-width:46px;text-align:right}
+
+/* ---- provenance banner for a result nobody logged ---- */
+.band-note{border:1px solid var(--line);border-left:3px solid var(--k-scope);
+  background:var(--surface);padding:12px 14px;margin:14px 0 0;max-width:80ch}
+.band-note .t{font-size:11px;text-transform:uppercase;letter-spacing:.7px;font-weight:600;
+  color:var(--k-scope);margin-bottom:4px}
+</style>
+</head>
+<body><div id="root"></div>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const KEY='nullspace_token';
+let TOKEN=localStorage.getItem(KEY)||'',ME=null,WORLD=[],BUSY=false,SCHED={on:false,every:180,runs:0};
+
+const api=async(p,o={})=>{const r=await fetch(p,{...o,headers:{'Content-Type':'application/json','X-Token':TOKEN,...(o.headers||{})}});
+  const d=await r.json().catch(()=>({error:'bad response'}));
+  if(!r.ok&&d.error)throw new Error(d.error);return d;};
+const poll=async(job,cb)=>{for(;;){const j=await api('/api/job?id='+job);cb&&cb(j);
+  if(j.status==='done')return j.result;if(j.status==='error')throw new Error(j.error);
+  await new Promise(z=>setTimeout(z,850));}};
+const ago=t=>{if(!t)return'';const s=Date.now()/1000-t;
+  if(s<60)return'now';if(s<3600)return Math.floor(s/60)+'m';
+  if(s<86400)return Math.floor(s/3600)+'h';return Math.floor(s/86400)+'d';};
+const copy=(t,b)=>navigator.clipboard.writeText(t).then(()=>{const o=b.textContent;
+  b.textContent='Copied';setTimeout(()=>b.textContent=o,1300)}).catch(()=>{});
+const KIND={mechanism:['mech','mechanism'],artifact:['art','artifact'],
+  scope:['scope','narrower'],already_known:['known','already answered']};
+/* Status is what the agent concluded, not a bucket the scientist has to choose.
+   Each one implies a different next move. */
+const STATUS={
+  open:{mk:'mech',tag:'mech',label:'has a testable explanation',
+    means:'Your agent found work that could explain it, and an experiment that would decide.'},
+  blocked:{mk:'art',tag:'art',label:'needs a control first',
+    means:'As it stands the experiment cannot tell a real absence from a measurement that was never calibrated.'},
+  answered:{mk:'known',tag:'known',label:'answered in the literature',
+    means:'Someone has since published the explanation. What is left is confirming it applies here.'},
+  unread:{mk:'',tag:'out',label:'not read yet',
+    means:'Nobody has run an agent over this one.'}};
+
+async function boot(){
+  try{const d=await api('/api/me');ME=d.scientist;WORLD=d.world||[];
+    if(ME){ME.unread=d.unread;ME.pending=d.pending||[];}
+    if(d.schedule)SCHED=d.schedule;}catch(e){ME=null;}
+  if(!ME){TOKEN='';localStorage.removeItem(KEY);return landing();}
+  route();
+}
+addEventListener('hashchange',()=>{if(ME)route();});
+
+/* ---------------------------------------------------------------- landing
+   You can see the product before you are asked for anything. Every negative
+   results repository dies of the empty shelf, and asking a stranger to write
+   five lines about themselves before showing them a single screen is the
+   fastest way to get there. */
+function landing(){
+  $('#root').innerHTML=`<div class="land">
+    <div class="hero">
+      <h1>Nullspace</h1>
+      <p class="sub">The place a result that did not work goes, instead of
+        a drawer. Your agent works out what it was really telling you, and
+        who already knows.</p>
+      <div class="toolbar" style="margin-top:24px">
+        <button class="pri" id="asAlexa">Look inside a real lab</button>
+        <button id="mkAgent">Set up your agent</button>
+        <button class="bare sm" id="hasKey">I have a key</button></div>
+      <p class="tiny" style="margin-top:9px">Nothing to install. The lab you can
+        look inside is seeded with real published work.</p>
+      <div id="lout"></div>
+    </div>
+
+    <div class="steps">
+      <div class="s"><span class="k">01</span><b>Log what happened</b>
+        <span>A notebook page, a slide caption, or just talk. Your agent interviews
+          you for the rest &mdash; starting with what the project was for.</span></div>
+      <div class="s"><span class="k">02</span><b>It goes and reads</b>
+        <span>It writes its own literature searches, including ones that deliberately
+          leave your field, and explains your result against what it found.</span></div>
+      <div class="s"><span class="k">03</span><b>It finds who could settle it</b>
+        <span>It restates your problem in other fields' words. Their agents answer
+          only if their scientist can genuinely do something. Most say no.</span></div>
+    </div>
+
+    <div class="peek">
+      <div class="ph">What a shelved result looks like</div>
+      <div style="padding:14px 16px">
+        <div style="font-size:15.5px;font-weight:500">Strictosidine not detected by LC-MS
+          in <i>S. cerevisiae</i> carrying a 13-gene camptothecin precursor pathway</div>
+        <div class="small" style="margin-top:3px">Shelved 2022 &middot; Isaacs Lab</div>
+        <div class="chips" style="margin-top:10px">
+          <span class="tag art">needs a control first</span>
+          <span class="tag acc">14 papers published since</span>
+          <span class="tag known">1 person could settle it</span></div>
+        <p class="small" style="margin-top:12px;max-width:72ch">The agent's reading:
+          without an authentic standard or MS/MS, the experiment cannot tell a real
+          absence from a measurement that was never calibrated. Four years on, the
+          same build has been published working at 843&nbsp;mg/L.</p>
+      </div>
+    </div>
+
+    <h2 style="margin-top:38px">Why it exists</h2>
+    <p style="max-width:70ch">A negative result normally dead-ends. It is rarely
+      publishable, no credit accrues to it, and the knowledge leaves with whoever
+      produced it. Often the work that would explain it already exists &mdash; in an
+      adjacent field, or published after the project was shelved. Nobody goes looking,
+      because looking is expensive and the result is already dead. An agent can look.</p>
+    <p class="small" style="max-width:70ch">Results start visible to your lab only.
+      Nothing leaves without you widening it on purpose.</p>
+  </div>`;
+  $('#mkAgent').onclick=()=>{ONB=1;onbDraw()};
+  $('#hasKey').onclick=()=>{
+    $('#lout').innerHTML=`<div class="toolbar"><input id="tk" placeholder="key" style="flex:1;max-width:260px">
+      <button class="sm" id="useTk">Open</button></div>`;
+    $('#tk').focus();
+    $('#useTk').onclick=async()=>{try{
+      const d=await api('/api/use-token',{method:'POST',body:JSON.stringify({token:$('#tk').value.trim()})});
+      TOKEN=d.token;localStorage.setItem(KEY,TOKEN);location.hash='#/';boot();
+    }catch(e){$('#lout').innerHTML=`<div class="err">${esc(e.message)}</div>`}};
+  };
+  $('#asAlexa').onclick=openDemo;
+}
+async function openDemo(){
+  try{
+    const d=await fetch('/api/me').then(r=>r.json());
+    const a=(d.world||[]).find(s=>s.name==='Alexa Loste')||(d.world||[])[0];
+    if(!a)throw new Error('run seed_world.py first');
+    const r=await fetch('/api/demo-token?id='+a.id).then(r=>r.json());
+    if(!r.token)throw new Error('no key for that profile');
+    TOKEN=r.token;localStorage.setItem(KEY,TOKEN);location.hash='#/';boot();
+  }catch(e){const o=$('#lout');if(o)o.innerHTML=`<div class="err">${esc(e.message)}</div>`}
+}
+
+/* ---------------------------------------------------------------- onboarding
+   Three steps, and the middle one shows what the agent understood. That screen
+   is doing real work: the techniques it extracted are literally what other
+   agents match against, so the scientist has to see and fix them. */
+let ONB=0,ONBTEXT='',ONBPROF=null;
+const ONB_STEPS=['Tell it about you','Check what it understood','Start'];
+
+function onbShell(inner){
+  $('#root').innerHTML=`<div class="land" style="max-width:620px">
+    <div class="stepper">${ONB_STEPS.map((s,i)=>
+      `<i class="${ONB===i+1?'on':(ONB>i+1?'done':'')}">${i+1}. ${esc(s)}</i>`).join('')}</div>
+    ${inner}</div>`;
+}
+function onbDraw(){
+  if(ONB===1){
+    onbShell(`<h1>Who are you, and what can you do?</h1>
+      <p class="lede">Write it however you would say it out loud. Your techniques and
+        instruments matter more than your title &mdash; they are what another
+        researcher's agent matches against when it decides whether you could help.</p>
+      <textarea id="who" rows="6" style="margin-top:16px"
+        placeholder="I'm a postdoc in a yeast metabolic engineering lab. I build multi-gene pathways, run LC-MS and GC-MS myself, and I have access to a plate reader and flow cytometry..."></textarea>
+      <div class="toolbar">
+        <button class="pri" id="go">Continue</button>
+        <button class="sm" id="dictw"><span class="rec"><span class="pulse"></span>Dictate</span></button>
+        <span class="grow"></span>
+        <button class="bare sm" id="back">Back</button></div>
+      <div id="lout"></div>`);
+    $('#who').value=ONBTEXT;$('#who').focus();
+    $('#dictw').onclick=()=>dictate($('#who'));
+    $('#back').onclick=()=>{ONB=0;landing()};
+    $('#go').onclick=async()=>{
+      const t=$('#who').value.trim();if(!t)return;
+      ONBTEXT=t;$('#go').disabled=true;
+      const tick=waiting($('#lout'),'your agent is reading that');
+      try{const {job}=await api('/api/onboard',{method:'POST',body:JSON.stringify({text:t})});
+        const r=await poll(job,tick);
+        TOKEN=r.token;localStorage.setItem(KEY,TOKEN);
+        ONBPROF=r.scientist;ONB=2;onbDraw();
+      }catch(e){$('#lout').innerHTML=`<div class="err">${esc(e.message)}</div>`;$('#go').disabled=false}};
+    return;
+  }
+  if(ONB===2){
+    const p=ONBPROF||{};
+    const list=(label,arr,note)=>`<dt>${esc(label)}</dt><dd>${
+      (arr||[]).length?`<div class="chips">${arr.map(x=>`<span class="tag">${esc(x)}</span>`).join('')}</div>`
+        :`<span class="small" style="color:#8a6420">${esc(note)}</span>`}</dd>`;
+    onbShell(`<h1>This is what your agent understood</h1>
+      <p class="lede">It will introduce you to other agents with exactly this. If
+        something important is missing, add it &mdash; a technique it does not know about
+        is one it cannot offer on your behalf.</p>
+      <dl class="facts" style="margin-top:18px">
+        <dt>Name</dt><dd><input id="pname" value="${esc(p.name==='You'?'':(p.name||''))}"
+          placeholder="your name &mdash; it is what other scientists see"
+          style="max-width:330px;padding:4px 7px"></dd>
+        <dt>Field</dt><dd>${esc(p.field||'')}</dd>
+        ${p.institution?`<dt>Where</dt><dd>${esc(p.institution)}</dd>`:''}
+        ${list('Techniques',p.techniques,'none picked up &mdash; worth adding')}
+        ${list('Equipment',p.equipment,'none picked up')}
+        ${list('Can offer',p.can_offer,'none picked up')}
+        ${list('Nearby fields',p.adjacent_fields,'none picked up')}
+      </dl>
+      <h2 style="font-size:16px">Anything to add?</h2>
+      <textarea id="more" rows="3" style="margin-top:9px"
+        placeholder="Also: I run the lab's Orbitrap, and I've done a lot of codon optimisation."></textarea>
+      <div class="toolbar">
+        <button class="pri" id="ok">That's right</button>
+        <button class="sm" id="redo">Add it</button></div>
+      <div id="lout"></div>`);
+    $('#redo').onclick=async()=>{
+      const extra=$('#more').value.trim();if(!extra)return;
+      $('#redo').disabled=true;
+      const tick=waiting($('#lout'),'updating your profile');
+      try{const {job}=await api('/api/onboard',{method:'POST',
+          body:JSON.stringify({text:ONBTEXT+'\n\n'+extra,token:TOKEN})});
+        const r=await poll(job,tick);
+        TOKEN=r.token;localStorage.setItem(KEY,TOKEN);ONBPROF=r.scientist;onbDraw();
+      }catch(e){$('#lout').innerHTML=`<div class="err">${esc(e.message)}</div>`;$('#redo').disabled=false}};
+    $('#ok').onclick=async()=>{
+      const n=($('#pname')?.value||'').trim();
+      if(n&&n!==p.name){try{await api('/api/profile',{method:'POST',
+        body:JSON.stringify({name:n})})}catch(e){}}
+      ONB=3;onbDraw()};
+    return;
+  }
+  onbShell(`<h1>Your agent is ready</h1>
+    <p class="lede">It has nothing to work on yet. Give it one result and it will
+      start reading. Everything you log is visible to your lab only until you widen it.</p>
+    <div class="picks">
+      <button class="pick" id="pLog"><b>Log a result</b>
+        <span>Something that did not work. Paste it, drop a file, or talk &mdash;
+          your agent asks about the rest.</span></button>
+      <button class="pick" id="pDemo"><b>Look at a real lab first</b>
+        <span>Five shelved results with everything an agent found about them.
+          Quickest way to see what you get.</span></button>
+    </div>
+    <p class="tiny" style="margin-top:18px">Your key: <span class="mono">${esc(TOKEN)}</span>
+      &mdash; it is how you get back in. There is no password.</p>`);
+  $('#pLog').onclick=()=>{ONB=0;location.hash='#/new';boot()};
+  $('#pDemo').onclick=()=>{ONB=0;openDemo()};
+}
+
+/* ---------------------------------------------------------------- shell */
+function shell(head,inner,on){
+  const p=(ME.pending||[]).length;
+  return `<div class="app">
+    <nav class="rail">
+      <div class="mark">Nullspace<small>${esc(ME.lab||'negative results')}</small></div>
+      <a class="nav ${on==='home'?'on':''}" href="#/home" style="margin-top:10px">Home</a>
+      <a class="nav ${on==='ask'?'on':''}" href="#/ask">Ask your agent</a>
+      <div class="rsec">The shelf</div>
+      <a class="nav ${on==='shelf'?'on':''}" href="#/shelf">Projects<span class="n" id="nShelf"></span></a>
+      <a class="nav ${on==='new'?'on':''}" href="#/new">Log a result</a>
+      <a class="nav ${on==='lit'?'on':''}" href="#/literature">From the literature</a>
+      <div class="rsec">You</div>
+      <a class="nav ${on==='mine'?'on':''}" href="#/mine">Your results</a>
+      <a class="nav ${on==='rec'?'on':''}" href="#/record">Your record</a>
+      <div class="rsec">Other labs</div>
+      <a class="nav ${on==='conn'?'on':''}" href="#/connections">Who could help<span class="n">${ME.unread||''}</span></a>
+      <a class="nav ${on==='help'?'on':''}" href="#/help">Asked of you</a>
+      <a class="nav ${on==='net'?'on':''}" href="#/network">Agents<span class="n">${WORLD.length+1}</span></a>
+      <a class="nav ${on==='guide'?'on':''}" href="#/guide">How this works</a>
+      <div class="rfoot">Your agent<br>
+        <span style="opacity:.8">${BUSY?'working':(p?p+' queued':'idle')}</span><br>
+        <label style="display:flex;gap:6px;align-items:center;margin-top:7px;cursor:pointer">
+          <input type="checkbox" id="schedOn" ${SCHED.on?'checked':''}
+            style="width:auto;padding:0;margin:0;accent-color:#fff">
+          <span style="font-size:11.5px">keep working on its own</span></label>
+        <span style="font-size:11px;opacity:.6;display:block;margin-top:2px">${
+          SCHED.on?`every ${Math.round((SCHED.every||180)/60)} min &middot; ${SCHED.runs||0} run${SCHED.runs===1?'':'s'}`
+            :'only when you ask'}</span>
+        <span class="mono" style="font-size:11px;opacity:.5;display:block;margin-top:6px">${esc(TOKEN)}</span></div>
+    </nav>
+    <div>
+      <header class="bar">${head}<span class="grow"></span>
+        <button class="sm" id="workBtn" ${BUSY||!nextLabel()?'disabled':''}
+          title="${esc(nextWhy())}">${BUSY?'Working':(nextLabel()||'Nothing to do')}</button>
+      </header>
+      <div class="body"><div id="work"></div>${inner}</div>
+    </div></div>`;
+}
+/* The button says what the agent will actually do next, not "run". */
+const ACTION={scout:'Read the literature',recheck:'Check what has changed since',
+  broadcast:'Ask other fields',
+  respond:"Answer others' requests",broker:'Write the introductions'};
+function nextLabel(){const p=(ME.pending||[])[0];return p?ACTION[p.action]||'Work':'';}
+function nextWhy(){const p=(ME.pending||[])[0];return p?p.reason||'':'Your agent has nothing waiting.';}
+
+function wire(){
+  const b=$('#workBtn');if(b)b.onclick=runAgent;
+  const sc=$('#schedOn');
+  if(sc)sc.onchange=async()=>{
+    try{const r=await api('/api/schedule',{method:'POST',
+      body:JSON.stringify({on:sc.checked})});SCHED=r.schedule;route();}catch(e){}};
+}
+
+/* One waiting state everywhere, so a queued job never looks hung. */
+function waiting(el,what){
+  if(!el)return()=>{};
+  el.innerHTML=`<div class="wait"><span class="sk" style="width:120px;height:9px"></span>
+    <span class="small" id="wmsg">${esc(what)}</span></div>`;
+  return j=>{const m=$('#wmsg',el);if(!m)return;
+    m.textContent = j.status==='queued'
+      ? `waiting behind ${j.position} other ${j.position===1?'job':'jobs'} — one runs at a time`
+      : what;};
+}
+
+async function runAgent(){
+  if(BUSY)return;BUSY=true;
+  const b=$('#workBtn');if(b){b.disabled=true;b.textContent='Working';}
+  $('#work').innerHTML=`<h2 style="margin-top:0">Your agent <span class="note" id="rh">starting</span></h2>
+    <div class="log" id="rlog" style="margin-top:9px"></div>`;
+  try{
+    const {job}=await api('/api/tick',{method:'POST',body:JSON.stringify({mine_only:true,rounds:3})});
+    let seen=0;
+    await poll(job,j=>{
+      if(j.status==='queued'){$('#rh').textContent=`queued, ${j.position} ahead`;return;}
+      $('#rh').textContent='working';
+      const L=j.log||[];
+      if(L.length>seen){const box=$('#rlog');
+        L.slice(seen).forEach(l=>{const d=document.createElement('div');
+          if(l.startsWith('    '))d.className='ind';d.textContent=l.trim();box.appendChild(d)});
+        box.scrollTop=box.scrollHeight;seen=L.length;}
+    });
+    BUSY=false;
+    const d=await api('/api/me');ME=d.scientist;ME.unread=d.unread;ME.pending=d.pending||[];
+    route();
+  }catch(e){BUSY=false;$('#work').innerHTML=`<div class="err">${esc(e.message)}</div>`;wire();}
+}
+
+/* expand-in-place for any table built by `rows()` */
+function expandable(scope){
+  $$('tr.row',scope||document).forEach(tr=>tr.onclick=ev=>{
+    if(ev.target.closest('a')||ev.target.closest('button'))return;
+    const det=tr.nextElementSibling;
+    if(!det||!det.classList.contains('det'))return;
+    const open=!det.classList.contains('hide');
+    det.classList.toggle('hide',open);tr.classList.toggle('open',!open);
+  });
+}
+
+/* ---------------------------------------------------------------- router */
+async function route(){
+  const [,seg,arg]=(location.hash||'#/').split('/');
+  try{
+    if(seg==='result')await viewResult(arg);
+    else if(seg==='new')viewNew();
+    else if(seg==='home')await viewHome();
+    else if(seg==='record')await viewRecord();
+    else if(seg==='literature')await viewLiterature();
+    else if(seg==='mine')await viewShelf(true);
+    else if(seg==='connections')await viewConnections();
+    else if(seg==='help')await viewHelp();
+    else if(seg==='network')await viewNetwork();
+    else if(seg==='match')await viewMatch(arg);
+    else if(seg==='guide')viewGuide();
+    else if(seg==='ask')viewAsk();
+    else if(seg==='project')await viewProject(decodeURIComponent(arg||''));
+    else if(seg==='shelf')await viewShelf(false);
+    else await viewHome();
+  }catch(e){$('#root').innerHTML=shell(`<h1>Error</h1>`,`<div class="err">${esc(e.message)}</div>`,'');wire();}
+}
+
+/* ---------------------------------------------------------------- home
+   What you come back to. Not a dashboard of totals: three questions in order,
+   "what happened without me", "what is waiting on me", "where do I go". An
+   empty account gets the same page with the steps still to do, so a new user
+   never lands on a blank table. */
+async function viewHome(){
+  const h=await api('/api/home');
+  const first=h.n_lab===0;
+  const todo=[];
+  (h.needs_read||[]).forEach(r=>todo.push({t:'Nobody has read the literature against this',
+    d:r.title,go:'#/result/'+r.id,act:'Open it'}));
+  (h.unclaimed||[]).forEach(r=>todo.push({t:'Found in a paper, nobody has taken it on',
+    d:r.title,go:'#/result/'+r.id,act:'Look'}));
+  (h.never_shared||[]).forEach(r=>todo.push({t:'Read, but still visible to your lab only',
+    d:r.title,go:'#/result/'+r.id,act:'Decide'}));
+
+  $('#root').innerHTML=shell(
+    `<div><h1>${esc(first?'Welcome to Nullspace':(h.lab||'Your shelf'))}</h1>
+      <p class="lede">${first
+        ? 'Your agent is set up and waiting for something to work on.'
+        : `${h.n_lab} result${h.n_lab===1?'':'s'} shelved across ${h.members} ${h.members===1?'person':'people'}. Here is what changed while you were away.`}</p></div>`,
+    first?`
+      <h2 style="margin-top:22px">Three things, in order</h2>
+      <div class="picks">
+        <button class="pick" data-go="#/new"><b>1 &middot; Log a result</b>
+          <span>Something that did not work. A notebook page, a slide caption, or
+            just talk &mdash; your agent asks about the rest.</span></button>
+        <button class="pick" data-go="#/guide"><b>2 &middot; See what it does with it</b>
+          <span>It reads the literature, explains your result against it, and names
+            the experiment that would settle each explanation.</span></button>
+        <button class="pick" id="hDemo"><b>3 &middot; Or look at a real lab</b>
+          <span>Five results already worked through, including one the literature
+            answered four years after it was shelved.</span></button>
+      </div>
+      <h2>What this is for</h2>
+      <p style="max-width:70ch">A negative result normally dead-ends: rarely publishable,
+        no credit, and the knowledge leaves with whoever produced it. Often the work that
+        explains it already exists in a field you would never search. Nobody looks, because
+        looking is expensive and the result is already dead. An agent can look.</p>`
+    :`
+      <div class="stats">
+        <div class="stat lit"><span class="v">${h.n_new_papers||0}</span>
+          <span class="l">papers published since these were shelved</span></div>
+        <div class="stat"><span class="v">${h.unread||0}</span>
+          <span class="l">unread for you</span></div>
+        <div class="stat"><span class="v">${h.n_can_help||0}</span>
+          <span class="l">asked of you by other labs</span></div>
+        <div class="stat"><span class="v">${h.n_mine||0}</span>
+          <span class="l">results you logged</span></div>
+      </div>
+
+      ${todo.length?`<h2>Waiting on you <span class="n">${todo.length}</span></h2>
+        <table class="t"><colgroup><col style="width:270px"><col><col style="width:74px"></colgroup>
+        <tbody>${todo.slice(0,6).map(x=>`<tr class="row" data-go="${x.go}">
+          <td class="small">${esc(x.t)}</td>
+          <td class="clip" title="${esc(x.d||'')}">${esc(x.d||'')}</td>
+          <td class="c">${esc(x.act)}</td></tr>`).join('')}</tbody></table>`
+        :`<h2>Waiting on you</h2><p class="small">Nothing. Every result has been read,
+            and everything your agent put out has come back.</p>`}
+
+      ${(h.events||[]).length?`<h2>What your agent did <span class="note">most recent first</span></h2>
+        <table class="t"><colgroup><col style="width:22px"><col style="width:270px"><col><col style="width:44px"></colgroup>
+        <tbody>${h.events.slice(0,7).map(e=>`<tr class="row" ${
+            e.match_id?`data-go="#/match/${e.match_id}"`:e.problem_id?`data-go="#/result/${e.problem_id}"`:''}>
+          <td class="dot"><span class="mk ${e.read?'':'mech'}"></span></td>
+          <td>${esc(e.title)}</td>
+          <td class="clip small" title="${esc(e.body||'')}">${esc(e.body||'')}</td>
+          <td class="c">${ago(e.created)}</td></tr>`).join('')}</tbody></table>`:''}
+
+      <h2>Go on then</h2>
+      <div class="picks">
+        <button class="pick" data-go="#/ask"><b>Ask your agent</b>
+          <span>It has read every result on this shelf. "What is worth picking back
+            up?" is a good first question.</span></button>
+        <button class="pick" data-go="#/shelf"><b>The shelf</b>
+          <span>Every project with something shelved under it, and where each
+            one stands.</span></button>
+        <button class="pick" data-go="#/new"><b>Log a result</b>
+          <span>Add one of your own. It stays inside your lab until you say
+            otherwise.</span></button>
+      </div>`,
+    'home');
+  wire();
+  $$('[data-go]').forEach(el=>el.onclick=()=>{location.hash=el.dataset.go;route()});
+  const hd=$('#hDemo');if(hd)hd.onclick=openDemo;
+}
+
+/* ---------------------------------------------------------------- record
+   Credit is the whole long-run argument. It is only a count today, but a count
+   that exists is a different product from one that does not. */
+async function viewRecord(){
+  const r=await api('/api/record');
+  const s=r.scientist||{};
+  $('#root').innerHTML=shell(
+    `<div><h1>Your record</h1>
+      <p class="lede">What you have contributed here. Nothing in this list is publishable,
+        which is the point &mdash; it is the work that normally leaves no trace.</p></div>`,`
+    <div class="stats">
+      <div class="stat"><span class="v">${(r.logged||[]).length}</span>
+        <span class="l">results logged</span></div>
+      <div class="stat"><span class="v">${r.n_shared||0}</span>
+        <span class="l">shared beyond your lab</span></div>
+      <div class="stat"><span class="v">${(r.answered||[]).length}</span>
+        <span class="l">questions you answered</span></div>
+      <div class="stat"><span class="v">${(r.cosigned||[]).length}</span>
+        <span class="l">results you co-signed</span></div>
+    </div>
+
+    ${(r.logged||[]).length?`<h2>Results you logged <span class="n">${r.logged.length}</span></h2>
+      <table class="t"><colgroup><col><col style="width:110px"><col style="width:86px"><col style="width:44px"></colgroup>
+      <thead><tr><th>Result</th><th>Visible to</th><th>Co-signed</th><th class="c">Year</th></tr></thead>
+      <tbody>${r.logged.map(x=>`<tr class="row" data-go="#/result/${x.id}">
+        <td class="clip" title="${esc(x.title)}">${esc(x.title)}</td>
+        <td><span class="tag ${x.visibility==='public'?'known':x.visibility==='consortium'?'scope':'out'}">${
+          esc(VIS[x.visibility]?VIS[x.visibility][0]:x.visibility)}</span></td>
+        <td class="c">${x.cosigns||'&mdash;'}</td>
+        <td class="c">${x.year||''}</td></tr>`).join('')}</tbody></table>`:''}
+
+    ${(r.answered||[]).length?`<h2>Questions you answered <span class="n">${r.answered.length}</span>
+      <span class="note">your agent judged these worth your time</span></h2>
+      <table class="t"><colgroup><col style="width:150px"><col></colgroup>
+      <tbody>${r.answered.map(x=>`<tr class="row" data-go="#/match/${x.id}">
+        <td>${esc(x.asker||'')}</td>
+        <td class="clip" title="${esc(x.what||'')}">${esc(x.what||'')}</td></tr>`).join('')}</tbody></table>`:''}
+
+    ${(r.cosigned||[]).length?`<h2>You co-signed <span class="n">${r.cosigned.length}</span>
+      <span class="note">you put your name to someone else's null</span></h2>
+      <table class="t"><colgroup><col><col style="width:150px"></colgroup>
+      <tbody>${r.cosigned.map(x=>`<tr class="row" data-go="#/result/${x.id}">
+        <td class="clip" title="${esc(x.title)}">${esc(x.title)}</td>
+        <td class="c">${esc(x.owner||'')}</td></tr>`).join('')}</tbody></table>`:''}
+
+    <h2>What this would be</h2>
+    <p style="max-width:70ch">A number that sits next to your publication count and says
+      what you contributed that was never publishable: the dead ends you wrote up properly,
+      the questions you answered for someone in another field, the results you were willing
+      to put your name to. None of it accrues anywhere today.</p>
+    <p class="small">Not built: this record is local to this instance and nothing verifies it.</p>
+    `,'rec');
+  wire();
+  $$('[data-go]').forEach(el=>el.onclick=()=>{location.hash=el.dataset.go;route()});
+}
+
+/* ---------------------------------------------------------------- literature
+   The supply side. A repository that only fills when somebody volunteers is a
+   repository that stays empty, so the agent goes and reads papers for nulls
+   nobody logged. */
+async function viewLiterature(){
+  const d=await api('/api/shelf');
+  const rows=(d.rows||[]).filter(r=>r.origin==='literature');
+  $('#root').innerHTML=shell(
+    `<div><h1>From the literature</h1>
+      <p class="lede">Negative results your agent found inside published papers &mdash;
+        a sub-experiment that failed, a control that did not work, an approach the
+        authors dropped. Nobody logged these.</p></div>`,`
+    <div class="toolbar">
+      <input id="mtopic" placeholder="a field or topic, e.g. yeast metabolic engineering"
+        style="flex:1;max-width:400px">
+      <button class="pri" id="mgo">Go and read</button></div>
+    <p class="tiny">Takes a few minutes. It refuses most papers &mdash; a paper whose
+      abstract only reports success is not a shelved result.</p>
+    <div id="mout"></div>
+    ${rows.length?`<h2>Found so far <span class="n">${rows.length}</span></h2>
+      <table class="t"><colgroup><col style="width:22px"><col><col style="width:126px"><col style="width:52px"></colgroup>
+      <tbody>${rows.map(r=>`<tr class="row" data-go="#/result/${r.id}">
+        <td class="dot"><span class="mk ${STATUS[r.status].mk}"></span></td>
+        <td class="clip" title="${esc(r.title)}">${esc(r.title)}</td>
+        <td>${r.unclaimed?'<span class="tag out">unclaimed</span>':'<span class="tag mech">taken on</span>'}</td>
+        <td class="c">${r.year||''}</td></tr>`).join('')}</tbody></table>`
+      :`<div class="empty"><b>Nothing mined yet.</b>
+        <p class="lede" style="margin:0">Name a field above and your agent will read
+          through the literature looking for results that were reported and then
+          dropped. This is how the shelf fills before anyone adopts the product.</p></div>`}
+    `,'lit');
+  wire();
+  $$('[data-go]').forEach(el=>el.onclick=()=>{location.hash=el.dataset.go;route()});
+  $('#mgo').onclick=async()=>{
+    $('#mgo').disabled=true;
+    const tick=waiting($('#mout'),'your agent is writing searches');
+    try{
+      const {job}=await api('/api/mine',{method:'POST',
+        body:JSON.stringify({topic:$('#mtopic').value.trim()})});
+      let seen=0;
+      const r=await poll(job,j=>{
+        tick(j);
+        const L=j.log||[];
+        if(L.length>seen){
+          $('#mout').innerHTML=`<div class="log">${L.map(l=>
+            `<div class="${l.startsWith('    ')?'ind':''}">${esc(l.trim())}</div>`).join('')}</div>`;
+          seen=L.length;}
+      });
+      $('#mout').innerHTML=`<div class="verdict good"><span class="tag known">done</span>
+        <span class="vt">${(r.found||[]).length} shelved result${(r.found||[]).length===1?'':'s'}
+        pulled out of the literature${r.n_refused?`, ${r.n_refused} papers refused`:''}.</span></div>`;
+      setTimeout(()=>route(),900);
+    }catch(e){$('#mout').innerHTML=`<div class="err">${esc(e.message)}</div>`;$('#mgo').disabled=false}
+  };
+}
+
+/* ---------------------------------------------------------------- shelf */
+const VIS={lab:['Lab only','Only people in your lab can see this.'],
+  consortium:['Named labs','Labs you have named can see it. Nobody else can.'],
+  public:['Public','Anyone can see it, and other agents can match against it.']};
+let SHELF=null;
+function groupProjects(rows){
+  const out=[];
+  rows.forEach(r=>{
+    const key=r.project||'Not filed under a project';
+    let g=out.find(x=>x.key===key);
+    if(!g){g={key,context:r.project_context,rows:[]};out.push(g);}
+    if(!g.context&&r.project_context)g.context=r.project_context;
+    g.rows.push(r);
+  });
+  return out;
+}
+async function viewShelf(mine){
+  const d=await api('/api/shelf');SHELF=d;ME.lab=d.lab;
+  let rows=d.rows;if(mine)rows=rows.filter(r=>r.is_mine);
+  const projects=groupProjects(rows);
+
+  $('#root').innerHTML=shell(
+    `<div><h1>${esc(mine?'Your projects':(d.lab||'Projects'))}</h1>
+      <p class="lede">${mine?'Projects you have logged a shelved result under.'
+        :`Every project in this lab with something shelved under it. ${d.members} ${d.members===1?'member':'members'}.`}</p></div>`,
+    rows.length?`
+      <table class="t" style="margin-top:14px">
+        <colgroup><col><col style="width:168px"><col style="width:86px"><col style="width:60px"></colgroup>
+        <thead><tr><th>Project</th><th>Where it stands</th><th>New work</th><th class="c">Shelved</th></tr></thead>
+        <tbody>${projects.map(g=>{
+          const open=g.rows.filter(r=>r.status==='open').length;
+          const blocked=g.rows.filter(r=>r.status==='blocked').length;
+          const answered=g.rows.filter(r=>r.status==='answered').length;
+          const unread=g.rows.filter(r=>r.status==='unread').length;
+          const newer=g.rows.reduce((n,r)=>n+(r.n_newer||0),0);
+          const bits=[];
+          if(answered)bits.push(`<span class="tag known">${answered} answered</span>`);
+          if(open)bits.push(`<span class="tag mech">${open} testable</span>`);
+          if(blocked)bits.push(`<span class="tag art">${blocked} needs a control</span>`);
+          if(unread)bits.push(`<span class="tag out">${unread} not read</span>`);
+          return `<tr class="row" data-proj="${esc(g.key)}">
+            <td><span style="font-weight:600">${esc(g.key)}</span>
+              <span class="tiny clip" style="display:block" title="${esc(g.context||'')}">${esc(g.context||'')}</span></td>
+            <td>${bits.join(' ')}</td>
+            <td>${newer?`<span class="tag acc">${newer} new paper${newer===1?'':'s'}</span>`:''}</td>
+            <td class="c">${g.rows.length}</td></tr>`;}).join('')}</tbody></table>
+      <h2>What the statuses mean</h2>
+      <table class="t"><colgroup><col style="width:22px"><col style="width:186px"><col></colgroup>
+      <tbody>${Object.keys(STATUS).map(k=>`<tr>
+        <td class="dot"><span class="mk ${STATUS[k].mk}"></span></td>
+        <td><span class="tag ${STATUS[k].tag}">${STATUS[k].label}</span></td>
+        <td class="small">${STATUS[k].means}</td></tr>`).join('')}</tbody></table>`
+    :`<div class="empty"><b>Nothing on the shelf yet.</b>
+       <p class="lede" style="margin:0 0 16px">This is where your lab's dead ends live:
+         experiments that did not work, each under the project it belonged to. Log one and
+         your agent reads the literature against it, including fields you would not search
+         yourself, then finds the people who could settle it.</p>
+       <div class="chips"><a href="#/new"><button class="pri">Log your first result</button></a>
+         <a href="#/guide"><button class="sm">How this works</button></a></div></div>`,
+    mine?'mine':'shelf');
+  wire();
+  const n=$('#nShelf');if(n)n.textContent=projects.length;
+  $$('tr.row[data-proj]').forEach(el=>el.onclick=()=>
+    location.hash='#/project/'+encodeURIComponent(el.dataset.proj));
+}
+
+/* A project has its own page: the shelf answers "what are we working on",
+   this answers "what happened on this one". */
+async function viewProject(key){
+  if(!SHELF)SHELF=await api('/api/shelf');
+  const g=groupProjects(SHELF.rows).find(x=>x.key===key);
+  if(!g)throw new Error('project not found');
+  const newer=g.rows.reduce((n,r)=>n+(r.n_newer||0),0);
+  $('#root').innerHTML=shell(
+    `<div style="min-width:0"><h1>${esc(g.key)}</h1>
+      <p class="lede">${esc(g.context||'')}</p></div>`,`
+    <h2>Shelved under this project <span class="n">${g.rows.length}</span>
+      <span class="note">click a result to see what your agent found</span></h2>
+    <table class="t">
+      <colgroup><col style="width:22px"><col><col style="width:186px"><col style="width:80px">
+        <col style="width:52px"><col style="width:44px"></colgroup>
+      <tbody>${g.rows.map(r=>`<tr class="row" data-rid="${r.id}">
+        <td class="dot"><span class="mk ${STATUS[r.status].mk}"></span></td>
+        <td class="clip" title="${esc(r.title)}">${esc(r.title)}</td>
+        <td><span class="tag ${STATUS[r.status].tag}">${STATUS[r.status].label}</span></td>
+        <td>${r.n_newer?`<span class="tag acc">${r.n_newer} new</span>`:''}</td>
+        <td class="c">${esc(r.is_mine?'you':(r.owner||'').split(' ')[0])}</td>
+        <td class="c">${r.year||''}</td></tr>`).join('')}</tbody></table>
+    ${newer?`<p class="small" style="margin-top:12px">${newer} paper${newer===1?'':'s'}
+      relevant to this project were published after the experiments were shelved.</p>`:''}
+    <h2>Ask your agent about this</h2>
+    <div class="chips" style="margin-top:10px">
+      ${['What should someone picking this up read first?',
+         'What is the cheapest experiment across these?',
+         'Has anything changed since we shelved this?'].map(q=>
+        `<button class="chip" data-ask="${esc(q+' (project: '+g.key+')')}">${esc(q)}</button>`).join('')}</div>
+    `,'shelf');
+  wire();
+  $$('tr.row[data-rid]').forEach(el=>el.onclick=()=>location.hash='#/result/'+el.dataset.rid);
+  $$('[data-ask]').forEach(b=>b.onclick=()=>{CHAT.push({role:'you',text:b.dataset.ask});
+    location.hash='#/ask';route();setTimeout(()=>sendChat(b.dataset.ask,true),60)});
+}
+
+/* ---------------------------------------------------------------- result */
+async function viewResult(id){
+  const d=await api('/api/problem?id='+id);
+  const p=d.problem,c=p.card,a=d.brief||{},hs=a.hypotheses||[];
+  const v=verdictOf(hs);
+  const newer=(a.papers||[]).filter(x=>(x.year||0)>(c.year||9999))
+    .sort((x,y)=>(y.year||0)-(x.year||0));
+  const matches=(d.matches||[]).filter(m=>m.can_help);
+  const isMine=d.scientist.id===ME.id;
+
+  const hypTable=`<table class="t">
+    <colgroup><col style="width:22px"><col><col style="width:126px"><col style="width:72px"><col style="width:44px"></colgroup>
+    <thead><tr><th></th><th>Explanation</th><th>Kind</th><th>Support</th><th class="c">Refs</th></tr></thead>
+    <tbody>${hs.map((h,i)=>{
+      const [k,label]=KIND[h.kind]||['none',h.kind||''];
+      const lvl=Math.round((h.confidence||0)/20);
+      return `<tr class="row">
+        <td class="dot"><span class="mk ${k}"></span></td>
+        <td class="clip" title="${esc(h.claim)}">${esc(h.claim)}</td>
+        <td><span class="tag ${k}">${esc(label)}</span></td>
+        <td><span class="bars" title="${h.confidence||0}% supported by retrieved work">${
+          [1,2,3,4,5].map(n=>`<i class="${n<=lvl?'on':''}" style="height:${3+n*1.6}px"></i>`).join('')}</span></td>
+        <td class="c">${(h.papers||[]).length}</td></tr>
+      <tr class="det hide"><td colspan="5"><div class="card">
+        <p class="why">${esc(h.reasoning)}</p>
+        ${h.evidence?`<p class="ev">${esc(h.evidence)}</p>`:''}
+        ${(h.papers||[]).length?`<div class="refs">${h.papers.map(x=>refHtml(x,true)).join('')}</div>`
+          :`<p class="ev" style="color:#8a6420">No retrieved paper supports this one.</p>`}
+        ${h.test?`<div class="exp"><b>experiment that would settle it</b><span>${esc(h.test)}</span></div>`:''}
+        ${h.would_change_the_result?`<p class="tiny">If true: ${esc(h.would_change_the_result)}</p>`:''}
+      </div></td></tr>`}).join('')}</tbody></table>`;
+
+  $('#root').innerHTML=shell(
+    `<div style="min-width:0"><h1>${esc(c.title)}</h1></div>
+     <span class="who">${esc(d.scientist.name)} &middot; ${c.year||''}</span>`,`
+    <dl class="facts">
+      <dt>Expected</dt><dd>${esc(c.expectation)}</dd>
+      <dt>Observed</dt><dd>${esc(c.observation)}</dd>
+    </dl>
+    <div class="verdict ${v.cls}">
+      <span class="tag ${v.k}">${v.chip}</span>
+      <span class="vt">${esc(a.verdict||v.fallback)}</span></div>
+
+    ${p.origin==='literature'?`<div class="band-note">
+      <div class="t">nobody logged this &mdash; your agent found it in a paper</div>
+      ${p.source_paper?`<div class="refs" style="margin-top:2px">${refHtml(p.source_paper)}</div>`:''}
+      ${p.source_paper?.quote?`<p class="ev" style="margin:8px 0 0">${esc(p.source_paper.quote)}</p>`:''}
+      ${p.unclaimed?`<div class="toolbar"><button class="pri sm" id="claim">Take this on</button>
+        <span class="small">Claiming it makes it yours to widen, co-sign and work from.</span></div>`
+        :`<p class="tiny" style="margin:8px 0 0">Taken on by ${esc(d.scientist.name)}.</p>`}
+    </div>`:''}
+
+
+    ${hs.length?`<h2>Explanations <span class="n">${hs.length}</span>
+      <span class="note">click a line to open it</span></h2>${hypTable}`
+      :`<div class="empty"><b>Nobody has read the literature against this yet.</b>
+        <p class="lede" style="margin:0 0 14px">Your agent will write its own searches,
+          including ones that deliberately leave this field, and explain the result against
+          what it actually retrieves. About two minutes.</p>
+        <button class="pri" id="readNow">Read the literature</button></div>`}
+
+    ${newer.length?`<h2>Published since <span class="n">${newer.length}</span>
+      <span class="note">did not exist when the experiment was done</span></h2>
+      <div class="refs">${newer.slice(0,6).map(refHtml).join('')}</div>
+      ${newer.length>6?`<button class="bare sm" id="moreNew">Show ${newer.length-6} more</button>
+        <div class="refs hide" id="newRest">${newer.slice(6).map(refHtml).join('')}</div>`:''}`:''}
+
+    ${matches.length?`<h2>Who could settle it <span class="n">${matches.length}</span>
+      <span class="note">their agent said yes</span></h2>
+      <table class="t"><colgroup><col style="width:22px"><col style="width:150px"><col></colgroup>
+      <tbody>${matches.map(m=>`<tr class="row" data-mid="${m.id}">
+        <td class="dot"><span class="mk known"></span></td>
+        <td>${esc(m.responder?.name||'')}<span class="tiny" style="display:block">${esc((m.responder?.field||'').split('/')[0])}</span></td>
+        <td class="clip" title="${esc(m.response?.specifically||'')}">${esc(m.response?.specifically||'')}</td>
+      </tr>`).join('')}</tbody></table>`:''}
+
+    ${(a.contacts||[]).length?`<h2>Authors worth contacting <span class="n">${a.contacts.length}</span>
+      <span class="note">verified against the retrieved author lists</span></h2>
+      <table class="t"><colgroup><col style="width:22px"><col style="width:170px"><col><col style="width:96px"></colgroup>
+      <tbody>${a.contacts.map(x=>`<tr class="row">
+        <td class="dot"><span class="mk"></span></td>
+        <td>${esc(x.name)}<span class="tiny" style="display:block">${esc((x.institutions||[])[0]||'')}</span></td>
+        <td class="clip" title="${esc(x.why)}">${esc(x.why)}</td>
+        <td class="c">${esc(x.role||'')}</td></tr>
+      <tr class="det hide"><td colspan="4"><div class="card">
+        <p class="why">${esc(x.why)}</p>
+        ${x.paper?`<div class="refs">${refHtml(x.paper)}</div>`:''}
+        ${x.ask?`<div class="msg">${esc(x.ask)}</div>
+          <div><button class="sm" data-copy="${esc(x.ask)}">Copy message</button></div>`:''}
+      </div></td></tr>`).join('')}</tbody></table>`:''}
+
+    <h2>Picking this up <span class="note">${p.pickup?'written for whoever comes next':'for a new student, or for you in two years'}</span></h2>
+    ${p.pickup?pickupHtml(p.pickup):`
+      <p class="small" style="margin-top:9px">The page above is written for the person who
+        ran the experiment. Someone inheriting it needs different things: where it actually
+        stopped, what is still in the freezer, and the cheapest thing that would tell them
+        whether to continue.</p>
+      <div class="toolbar"><button class="pri sm" id="mkPickup">Write the handover</button></div>`}
+    <div id="puwait"></div>
+
+    <h2>Methods and controls
+      <span class="note">${(c.quality_flags||[]).length} quality flag${(c.quality_flags||[]).length===1?'':'s'}</span></h2>
+    <dl class="facts">
+      ${c.methods?`<dt>Methods</dt><dd>${esc(c.methods)}</dd>`:''}
+      ${(c.ruled_out||[]).length?`<dt>Ruled out</dt><dd>${c.ruled_out.map(esc).join('<br>')}</dd>`:''}
+      ${(c.quality_flags||[]).length?`<dt>Flags</dt><dd>${c.quality_flags.map(f=>`<span class="tag scope" style="margin:0 4px 4px 0">${esc(f)}</span>`).join('')}</dd>`:''}
+      ${(c.open_questions||[]).length?`<dt>Open</dt><dd>${c.open_questions.map(esc).join('<br>')}</dd>`:''}
+    </dl>
+
+    ${d.signal?`<h2>Put to other fields <span class="n">${(d.signal.restatements||[]).length}</span>
+      <span class="note">the same result in their vocabulary</span></h2>
+      <p class="lede" style="margin-bottom:10px">${esc(d.signal.plain||'')}</p>
+      <table class="t"><colgroup><col style="width:22px"><col style="width:190px"><col></colgroup>
+      <tbody>${(d.signal.restatements||[]).map(r=>`<tr class="row">
+        <td class="dot"><span class="mk mech"></span></td>
+        <td>${esc(r.field)}</td>
+        <td class="clip" title="${esc(r.as_they_would_say_it)}">${esc(r.as_they_would_say_it)}</td></tr>
+      <tr class="det hide"><td colspan="3"><div class="card">
+        <p class="why">${esc(r.as_they_would_say_it)}</p>
+        <p class="ev">What they might know: ${esc(r.what_they_might_know||'')}</p>
+      </div></td></tr>`).join('')}</tbody></table>`:''}
+    ${shareHtml(p,d,isMine)}
+    ${a.score?scoreHtml(a.score):''}
+    ${a.n_papers?`<p class="tiny" style="margin-top:22px">${a.n_papers} papers read.
+      Every reference here was checked against what the search actually returned${
+      a.dropped_citations?`; ${a.dropped_citations} invented citation${a.dropped_citations>1?'s were':' was'} dropped`:''}.</p>`:''}
+    `,'shelf');
+  wire();expandable();
+  $$('[data-copy]').forEach(b=>b.onclick=e=>{e.stopPropagation();copy(b.dataset.copy,b)});
+  $$('tr.row[data-mid]').forEach(el=>el.onclick=()=>location.hash='#/match/'+el.dataset.mid);
+  const mn=$('#moreNew');if(mn)mn.onclick=()=>{$('#newRest').classList.remove('hide');mn.remove()};
+
+  const rn=$('#readNow');if(rn)rn.onclick=runAgent;
+  const cl=$('#claim');
+  if(cl)cl.onclick=async()=>{cl.disabled=true;
+    await api('/api/result/claim',{method:'POST',body:JSON.stringify({id})});route()};
+
+  const pu=$('#mkPickup');
+  if(pu)pu.onclick=async()=>{pu.disabled=true;
+    const tick=waiting($('#puwait'),'writing it for whoever comes next');
+    try{const {job}=await api('/api/pickup',{method:'POST',body:JSON.stringify({id})});
+      await poll(job,tick);route();
+    }catch(e){$('#puwait').innerHTML=`<div class="err">${esc(e.message)}</div>`;pu.disabled=false}};
+
+  /* Widening is a decision, so the flags are put in front of it rather than
+     left somewhere up the page. Inline, because a browser dialog cannot show
+     the agent's actual wording. */
+  const setVis=async to=>{
+    await api('/api/result/set',{method:'POST',body:JSON.stringify({id,visibility:to})});
+    route();};
+  $$('[data-vis]').forEach(b=>b.onclick=()=>{
+    const to=b.dataset.vis,flags=c.quality_flags||[];
+    if(to==='lab'||!flags.length)return setVis(to);
+    const box=$('#visgate');
+    box.innerHTML=`<div class="gate">
+      <b>Your agent flagged ${flags.length} thing${flags.length===1?'':'s'} about this result.</b>
+      <div style="margin:8px 0 0">${flags.map(f=>
+        `<div class="sign"><span class="mk art"></span><span>${esc(f)}</span></div>`).join('')}</div>
+      <p style="margin:10px 0 0">Widening does not hide them &mdash; anyone who opens this
+        sees them too. A flagged result shared honestly is still worth more than one
+        nobody can see.</p>
+      <div class="toolbar"><button class="pri sm" id="vyes">Share as ${esc(VIS[to][0])}</button>
+        <button class="sm" id="vno">Keep it in the lab</button></div></div>`;
+    $('#vyes').onclick=()=>setVis(to);
+    $('#vno').onclick=()=>{box.innerHTML=''};
+  });
+
+  const cf=$('#conf'),cfv=$('#confv');
+  if(cf){cf.oninput=()=>cfv.textContent=cf.value+'%';
+    cf.onchange=async()=>{await api('/api/result/set',{method:'POST',
+      body:JSON.stringify({id,confidence:+cf.value})});};}
+
+  const cs=$('#cosign');
+  if(cs)cs.onclick=async()=>{cs.disabled=true;
+    const note=($('#csnote')?.value||'').trim();
+    try{await api('/api/result/cosign',{method:'POST',body:JSON.stringify({id,note})});route()}
+    catch(e){cs.disabled=false;alert(e.message)}};
+}
+
+/* The handover. Different reader, different page: cost and stopping rules
+   rather than interpretation. */
+function pickupHtml(k){
+  return `<dl class="facts">
+    <dt>Where it stopped</dt><dd>${esc(k.where_it_stopped||'')}</dd>
+    ${(k.what_exists||[]).length?`<dt>You inherit</dt><dd>${
+      k.what_exists.map(x=>`<div class="sign" style="align-items:flex-start">
+        <span class="mk known" style="margin-top:6px;flex:none"></span>
+        <span style="color:var(--ink)">${esc(x)}</span></div>`).join('')}</dd>`:''}
+    <dt>Do this first</dt><dd>${esc(k.first_thing||'')}</dd>
+    <dt>Stop if</dt><dd>${esc(k.would_make_me_stop||'')}</dd>
+    ${k.what_changed?`<dt>Changed since</dt><dd>${esc(k.what_changed)}</dd>`:''}
+    ${(k.read_first||[]).length?`<dt>Read first</dt><dd>${k.read_first.map(r=>
+      `<div style="margin-bottom:6px">${esc(r.title)}
+        <span class="tiny" style="display:block">${esc(r.why||'')}</span></div>`).join('')}</dd>`:''}
+  </dl>
+  ${k.honest_warning?`<div class="gate" style="border-left-color:var(--k-art)">
+    <b>What the last person would tell you over coffee.</b> ${esc(k.honest_warning)}</div>`:''}`;
+}
+
+/* Who can see it, how sure the scientist is, and who else stands behind it.
+   These three together are the only answer to "won't this fill with junk". */
+function shareHtml(p,d,isMine){
+  const vis=p.visibility||'lab',flags=(p.card.quality_flags||[]).length;
+  const signs=p.cosigns||[];
+  const alreadySigned=signs.some(s=>s.scientist_id===ME.id);
+  return `<h2>Who can see this <span class="note">${esc(VIS[vis][0])}</span></h2>
+    ${isMine?`<div class="toolbar"><div class="seg">${Object.keys(VIS).map(k=>
+      `<button class="${k===vis?'on':''}" data-vis="${k}">${esc(VIS[k][0])}</button>`).join('')}</div>
+      <span class="small">${esc(VIS[vis][1])}</span></div>`
+      :`<p class="small" style="margin-top:9px">${esc(VIS[vis][1])}
+         Visibility is ${esc(d.scientist.name)}'s to change.</p>`}
+    <div id="visgate"></div>
+    ${isMine&&flags&&vis==='lab'?`<p class="tiny" style="margin-top:8px">Your agent flagged
+      ${flags} thing${flags===1?'':'s'} about this result. You will see them before
+      it goes anywhere.</p>`:''}
+
+    <h2>How sure are you <span class="note">the scientist's own number, not the agent's</span></h2>
+    ${isMine?`<div class="rng">
+        <span class="small">not at all</span>
+        <input type="range" id="conf" min="0" max="100" step="5" value="${p.confidence??50}">
+        <span class="small">certain</span>
+        <span class="v" id="confv">${p.confidence==null?'&mdash;':p.confidence+'%'}</span></div>
+      <p class="tiny">How confident you are that the effect is real, as opposed to something
+        your method could not have seen. Separate from the support bars above, which are
+        the agent's read of the literature.</p>`
+      :`<p class="small" style="margin-top:9px">${p.confidence==null
+        ?'Not set by the person who ran it.'
+        :esc(d.scientist.name)+' put this at '+p.confidence+'%.'}</p>`}
+
+    <h2>Co-signed <span class="n">${signs.length}</span>
+      <span class="note">someone else willing to put their name to it</span></h2>
+    ${signs.length?`<div style="margin-top:6px">${signs.map(s=>`<div class="sign">
+      <span class="mk known"></span><b style="color:var(--ink)">${esc(s.name)}</b>
+      <span>${esc(s.note||'')}</span></div>`).join('')}</div>`
+      :`<p class="small" style="margin-top:9px">Nobody yet. One co-signer is the whole
+        quality bar here: cheap for them, and it is what stops a repository of nulls
+        filling with things nobody would defend.</p>`}
+    ${!isMine&&!alreadySigned?`<div style="margin-top:10px">
+      <input id="csnote" placeholder="optional: what you are vouching for" style="max-width:430px">
+      <div class="toolbar"><button class="sm" id="cosign">Co-sign this result</button>
+        <span class="small">You are saying the data supports the negative conclusion,
+          not that you agree about why.</span></div></div>`:''}`;
+}
+/* `found by` is the provenance line. It earns its space inside an explanation,
+   where the reader is checking the agent's reasoning, and crowds a plain list. */
+function refHtml(p,showProvenance){
+  return `<div class="ref"><span class="y">${p.year||''}</span><span>
+    ${p.url?`<a class="lk" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a>`:esc(p.title)}
+    <span class="m">${esc(p.venue||'')}${p.cited_by_count!=null?' &middot; '+p.cited_by_count+' cited':''}</span>
+    ${showProvenance&&p.found_by?`<span class="f" title="${esc(p.found_by)}">found by: ${esc(p.found_by)}</span>`:''}</span></div>`;
+}
+function verdictOf(hs){
+  const top=hs[0]||{};
+  if(!hs.length)return{cls:'',k:'',chip:'not read',fallback:'Your agent has not read anything against this yet.'};
+  if(top.kind==='artifact')return{cls:'warn',k:'art',chip:'cannot tell yet',
+    fallback:'The experiment cannot separate a real absence from a measurement that was never calibrated.'};
+  if(top.kind==='already_known')return{cls:'good',k:'known',chip:'already answered',
+    fallback:'The explanation is in the literature below.'};
+  if(top.kind==='scope')return{cls:'',k:'scope',chip:'narrower than assumed',
+    fallback:'Real within limits the original expectation did not account for.'};
+  return{cls:'',k:'mech',chip:'needs an explanation',fallback:'Your agent found work that bears on this.'};
+}
+function scoreHtml(s){
+  return `<h2>Scored against what the scientist concluded
+    <span class="note">${esc(s.grade)}</span></h2>
+    <dl class="facts">
+      <dt>Mechanism</dt><dd>${s.found_mechanism?'found':'missed'}${s.mechanism_rank?`, ranked ${s.mechanism_rank}`:''}</dd>
+      <dt>Key paper</dt><dd>${s.found_key_paper?'found':'missed'}</dd>
+      <dt>Experiment</dt><dd>${s.proposed_matching_experiment?'matched':'did not match'}</dd>
+      <dt>Notes</dt><dd>${esc(s.notes)}</dd></dl>`;
+}
+
+/* ---------------------------------------------------------------- log */
+let TR=[],PASTE='',EXID=null,EXAMPLES=[],FILES=[];
+function viewNew(){
+  $('#root').innerHTML=shell(`<div><h1>Log a result</h1>
+    <p class="lede">Drop a notebook entry, paste what happened, or dictate it.
+      However rough it is, your agent will ask about the rest.</p></div>`,
+    `<div id="stage"></div>`,'new');
+  wire();drawLog();
+}
+async function drawLog(){
+  if(!EXAMPLES.length){try{EXAMPLES=(await api('/api/examples')).examples}catch(e){}}
+  if(!TR.length){
+    $('#stage').innerHTML=`
+      <div class="drop" id="drop" style="margin-top:16px">
+        <div style="font-size:16px;font-weight:500">Drop files here</div>
+        <div class="small">notebook pages, a slide, a figure, a method &mdash; or
+          <button class="bare sm" id="pick">choose files</button></div>
+        <input type="file" id="fin" multiple class="hide"></div>
+      <div id="flist"></div>
+      <h2>Or write it</h2>
+      <textarea id="paste" rows="7" style="margin-top:10px"
+        placeholder="We expected X. We saw Y. We tried Z and it changed nothing..."></textarea>
+      <div class="toolbar">
+        <button class="pri" id="start">Start</button>
+        <button class="sm" id="dictate"><span class="rec" id="r1"><span class="pulse"></span>Dictate</span></button>
+        <span class="tally">visible to your lab only until you widen it</span></div>
+      <h2>Or walk through an example</h2>
+      <div class="chips" style="margin-top:10px">${EXAMPLES.map(e=>
+        `<button class="chip" data-ex="${e.id}">${esc(e.label)}</button>`).join('')}</div>
+      <div id="lerr"></div>`;
+    const fin=$('#fin'),drop=$('#drop');
+    $('#pick').onclick=()=>fin.click();
+    fin.onchange=()=>addFiles([...fin.files]);
+    ['dragenter','dragover'].forEach(n=>drop.addEventListener(n,e=>{e.preventDefault();drop.classList.add('over')}));
+    ['dragleave','drop'].forEach(n=>drop.addEventListener(n,e=>{e.preventDefault();drop.classList.remove('over')}));
+    drop.addEventListener('drop',e=>addFiles([...e.dataTransfer.files]));
+    $('#start').onclick=()=>{const v=$('#paste').value.trim();
+      if(!v&&!FILES.length)return;PASTE=v||FILES.map(f=>f.text).join('\n\n');
+      TR=[{role:'scientist',text:PASTE}];drawLog();askNext();};
+    $('#dictate').onclick=()=>dictate($('#paste'));
+    $$('[data-ex]').forEach(b=>b.onclick=()=>{const e=EXAMPLES.find(x=>x.id===b.dataset.ex);
+      EXID=e.id;$('#paste').value=e.paste;$('#paste').scrollIntoView({block:'center'})});
+    return;
+  }
+  $('#stage').innerHTML=`
+    <p class="tiny mono" style="margin-top:14px">interview &middot;
+      ${TR.filter(t=>t.role==='agent').length} of about 5 questions</p>
+    <div>${TR.map(t=>`<div class="turn ${t.role==='agent'?'q':'a'}">
+      <div class="w">${t.role==='agent'?'Your agent':'You'}</div>
+      <div class="tx">${esc(t.text)}</div></div>`).join('')}</div>
+    <div id="ierr"></div>
+    <div id="inbox" class="hide" style="margin-top:14px">
+      <textarea id="ans" rows="3"></textarea>
+      <div class="toolbar">
+        <button class="pri" id="send">Answer</button>
+        <button class="sm" id="dict2"><span class="rec" id="r2"><span class="pulse"></span>Dictate</span></button>
+        <button class="sm" id="dunno">Never checked</button>
+        ${EXID?`<button class="sm" id="auto">Answer from the notebook</button>`:''}
+        <span class="grow"></span>
+        <button class="bare sm" id="enough">That's enough</button></div></div>`;
+  const s=$('#send');
+  if(s){s.onclick=()=>{const v=$('#ans').value.trim();if(!v)return;
+      TR.push({role:'scientist',text:v});drawLog();askNext()};
+    $('#dunno').onclick=()=>{TR.push({role:'scientist',text:"I don't know, we never checked that."});
+      drawLog();askNext()};
+    $('#enough').onclick=buildProblem;
+    $('#dict2').onclick=()=>dictate($('#ans'));
+    const au=$('#auto');if(au)au.onclick=autoAnswer;}
+}
+function addFiles(fs){
+  fs.forEach(f=>{const r=new FileReader();
+    r.onload=()=>{FILES.push({name:f.name,size:f.size,text:String(r.result).slice(0,20000)});
+      $('#flist').innerHTML=`<table class="t" style="margin-top:8px"><tbody>${FILES.map(x=>
+        `<tr><td>${esc(x.name)}</td><td class="c">${(x.size/1024).toFixed(0)} KB</td></tr>`).join('')}</tbody></table>`;
+      const ta=$('#paste');if(ta&&!ta.value.trim())ta.value=FILES.map(x=>x.text).join('\n\n').slice(0,6000);};
+    r.readAsText(f)});
+}
+function dictate(target){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){const e=$('#lerr')||$('#ierr');
+    if(e)e.innerHTML=`<div class="err">This browser has no speech recognition. Chrome does.</div>`;return;}
+  if(window.__rec){window.__rec.stop();window.__rec=null;
+    $$('.rec').forEach(r=>r.classList.remove('on'));return;}
+  const rec=new SR();window.__rec=rec;
+  rec.continuous=true;rec.interimResults=true;rec.lang='en-US';
+  const base=target.value?target.value+' ':'';
+  rec.onresult=ev=>{let out='';
+    for(let i=0;i<ev.results.length;i++)out+=ev.results[i][0].transcript;
+    target.value=base+out;};
+  rec.onend=rec.onerror=()=>{window.__rec=null;$$('.rec').forEach(r=>r.classList.remove('on'))};
+  rec.start();$$('.rec').forEach(r=>r.classList.add('on'));
+}
+async function askNext(){
+  const tick=waiting($('#ierr'),'your agent is reading what you wrote');
+  try{const {job}=await api('/api/interview/next',{method:'POST',body:JSON.stringify({transcript:TR})});
+    const r=await poll(job,tick);$('#ierr').innerHTML='';
+    if(r.done)return buildProblem();
+    TR.push({role:'agent',text:r.question});drawLog();
+    $('#inbox').classList.remove('hide');$('#ans')?.focus();
+  }catch(e){$('#ierr').innerHTML=`<div class="err">${esc(e.message)}</div>`}
+}
+async function autoAnswer(){
+  const q=[...TR].reverse().find(t=>t.role==='agent');if(!q)return;
+  $('#auto').disabled=true;$('#ans').value='';
+  const tick=waiting($('#ierr'),'answering from the notebook');
+  try{const {job}=await api('/api/interview/answer',{method:'POST',
+      body:JSON.stringify({example_id:EXID,question:q.text,transcript:TR})});
+    const r=await poll(job,tick);$('#ierr').innerHTML='';
+    $('#ans').value=r.answer||'';$('#auto').disabled=false;
+  }catch(e){$('#ierr').innerHTML=`<div class="err">${esc(e.message)}</div>`;$('#auto').disabled=false}
+}
+async function buildProblem(){
+  const tick=waiting($('#stage'),'writing your result down');
+  try{const {job}=await api('/api/problem/create',{method:'POST',
+      body:JSON.stringify({transcript:TR,paste:PASTE})});
+    const r=await poll(job,tick);TR=[];PASTE='';EXID=null;FILES=[];
+    const d=await api('/api/me');ME=d.scientist;ME.unread=d.unread;ME.pending=d.pending||[];
+    location.hash='#/result/'+r.problem.id;route();setTimeout(runAgent,350);
+  }catch(e){$('#stage').innerHTML=`<div class="err">${esc(e.message)}</div>`}
+}
+
+
+/* ---------------------------------------------------------------- guide
+   Permanent, not a dismissible tour: a new collaborator should be able to
+   open one page and know what every part of this is for. */
+const LOOP=[
+  ['You log a result','Paste a notebook entry, drop a file, or dictate it. Rough is fine.'],
+  ['Your agent interviews you','Four to six questions. It asks what the project was for first, because a result with no project behind it tells another scientist nothing. "Never checked" is a real answer and it is used.'],
+  ['It reads the literature','It writes its own searches, including ones that deliberately leave your field, and explains your result against what it actually retrieved.'],
+  ['It asks other fields','It restates your problem in another field\'s vocabulary and puts it to every other agent. Most say no. The ones that say yes name something specific they could do.'],
+  ['You get a brief and an introduction','Ranked explanations, each with one experiment that would settle it, and a drafted message to the person who could help.'],
+  ['You decide who sees it','Everything starts visible to your lab only. Before you widen it, your agent shows you what it flagged about the result itself.']];
+
+const PARTS=[
+  ['Result','One experiment that did not work, under the project it belonged to. Everything else hangs off it.'],
+  ['Project','What was being attempted and why. A shelf of isolated nulls is unreadable; a shelf of projects is not.'],
+  ['Agent','Yours. It holds your profile, your open results, and decides its own next action.'],
+  ['Brief','What your agent produced after reading: ranked explanations, the papers behind each, and the experiment that decides.'],
+  ['Handover','The same result written for whoever picks it up next: where it stopped, what they inherit, the cheapest thing to try, and what should make them stop.'],
+  ['Request','Your result restated for other fields, put to every other agent.'],
+  ['Connection','Another agent checked your result against what its scientist can actually do, and said yes.'],
+  ['Co-sign','Someone else putting their name to your result. Not agreement about why it happened, just that the data supports the negative conclusion.'],
+  ['Record','What you have contributed that is not publishable: nulls logged, questions answered, results co-signed.']];
+
+const TIERS=[
+  ['Lab only','Where everything starts. Nothing leaves without you moving it, which is the only version of this most scientists would use.'],
+  ['Named labs','A few labs you already work with. Useful before you are willing to be public, and the realistic second step.'],
+  ['Public','Anyone can see it and other agents can match against it. Your agent shows you its quality flags before you get here.']];
+
+const TRUTH=[
+  ['real','The literature. Live OpenAlex, no cached corpus.'],
+  ['real','Every citation. The model may cite only papers the search returned; anything else is dropped before you see it.'],
+  ['real','People suggested for contact, checked against the retrieved author lists.'],
+  ['real','Visibility tiers, co-signing and the handover are wired end to end, not mocked.'],
+  ['staged','Eight of nine scientists here are invented demo personas, labelled as such. The network effect is staged.'],
+  ['staged','The record counts what you did in this instance. Nothing verifies it and it accrues nowhere.'],
+  ['not yet','Agents act only when you press the button. Nothing runs on a schedule.'],
+  ['not yet','File upload reads text only. A PDF or a photographed page will not parse.'],
+  ['not yet','Agents read abstracts, not full text.']];
+
+function viewGuide(){
+  $('#root').innerHTML=shell(
+    `<div><h1>How this works</h1>
+      <p class="lede">A repository for experiments that did not work, and an agent that
+        goes and finds out why.</p></div>`,`
+    <h2>Why it exists</h2>
+    <p class="lede" style="max-width:70ch">A negative result normally dead-ends. It is rarely
+      publishable, no credit accrues to it, and the knowledge leaves with whoever produced it.
+      Often the work that would explain it already exists, in an adjacent field or published
+      after the project was shelved. Nobody goes looking, because looking is expensive and the
+      result is already dead. An agent can look.</p>
+
+    <h2>The loop <span class="note">press the button in the top right to advance it</span></h2>
+    <table class="t"><colgroup><col style="width:28px"><col style="width:220px"><col></colgroup>
+      <tbody>${LOOP.map((x,i)=>`<tr>
+        <td class="c mono" style="color:var(--faint)">${i+1}</td>
+        <td style="font-weight:600">${esc(x[0])}</td>
+        <td class="small">${esc(x[1])}</td></tr>`).join('')}</tbody></table>
+
+    <h2>The parts</h2>
+    <table class="t"><colgroup><col style="width:124px"><col></colgroup>
+      <tbody>${PARTS.map(x=>`<tr>
+        <td style="font-weight:600">${esc(x[0])}</td>
+        <td class="small">${esc(x[1])}</td></tr>`).join('')}</tbody></table>
+
+    <h2>Who can see what <span class="note">you decide, not your agent</span></h2>
+    <table class="t"><colgroup><col style="width:124px"><col></colgroup>
+      <tbody>${TIERS.map(x=>`<tr>
+        <td><span class="tag ${x[0]==='Public'?'known':x[0]==='Named labs'?'scope':'out'}">${esc(x[0])}</span></td>
+        <td class="small">${esc(x[1])}</td></tr>`).join('')}</tbody></table>
+    <p class="small" style="margin-top:9px;max-width:70ch">This is the part that makes it
+      usable before a network exists. Inside one lab there is no scooping risk, the people
+      already know each other, and a student inheriting a dead end is a thing that actually
+      happens. The public tier is the ambition; the lab tier is the product.</p>
+
+    <h2>Statuses on the shelf <span class="note">your agent assigns these, you do not</span></h2>
+    <table class="t"><colgroup><col style="width:22px"><col style="width:186px"><col></colgroup>
+      <tbody>${Object.keys(STATUS).map(k=>`<tr>
+        <td class="dot"><span class="mk ${STATUS[k].mk}"></span></td>
+        <td><span class="tag ${STATUS[k].tag}">${STATUS[k].label}</span></td>
+        <td class="small">${STATUS[k].means}</td></tr>`).join('')}</tbody></table>
+
+    <h2>What your agent will do next</h2>
+    <table class="t"><colgroup><col style="width:186px"><col></colgroup>
+      <tbody>
+        <tr><td style="font-weight:600">Read the literature</td>
+          <td class="small">A result nobody has looked into. Takes about two minutes.</td></tr>
+        <tr><td style="font-weight:600">Ask other fields</td>
+          <td class="small">A result it has read but not yet put to anyone else.</td></tr>
+        <tr><td style="font-weight:600">Answer others' requests</td>
+          <td class="small">Someone else's problem it has not judged against what you can do.</td></tr>
+        <tr><td style="font-weight:600">Write the introductions</td>
+          <td class="small">A match nobody has acted on yet.</td></tr>
+      </tbody></table>
+    <p class="small" style="margin-top:9px">One job runs at a time, because the agents share
+      a single model connection. If something is waiting it will say so rather than sit silent.</p>
+
+    <h2>What is real and what is staged</h2>
+    <table class="t"><colgroup><col style="width:78px"><col></colgroup>
+      <tbody>${TRUTH.map(x=>`<tr>
+        <td><span class="tag ${x[0]==='real'?'known':x[0]==='staged'?'scope':'out'}">${x[0]}</span></td>
+        <td class="small">${esc(x[1])}</td></tr>`).join('')}</tbody></table>
+    `,'guide');
+  wire();
+}
+
+
+/* ---------------------------------------------------------------- ask
+   The always-on side: your agent has read the shelf, so you ask it rather
+   than going to look yourself. */
+let CHAT=[];
+const STARTERS=['What is worth picking back up?',
+  'Which of these is actually unfinished rather than wrong?',
+  'What changed in the literature since we shelved these?',
+  'Who outside the lab could settle one of these?'];
+
+function viewAsk(){
+  $('#root').innerHTML=shell(
+    `<div><h1>Your agent</h1>
+      <p class="lede">It has read every result on the shelf and the literature behind them.
+        Ask it rather than going to look.</p></div>`,`
+    <div id="thread">${CHAT.length?'':`
+      <p class="small" style="margin-top:14px">Try one of these:</p>
+      <div class="chips" style="margin-top:8px">${STARTERS.map(q=>
+        `<button class="chip" data-s="${esc(q)}">${esc(q)}</button>`).join('')}</div>`}</div>
+    <div id="cwait"></div>
+    <div style="margin-top:16px">
+      <textarea id="cin" rows="2" placeholder="Ask your agent about anything on the shelf..."></textarea>
+      <div class="toolbar"><button class="pri" id="csend">Send</button>
+        <button class="sm" id="cdict"><span class="rec"><span class="pulse"></span>Dictate</span></button>
+        <span class="grow"></span>
+        ${CHAT.length?`<button class="bare sm" id="cclear">Clear</button>`:''}</div></div>`,'ask');
+  wire();drawChat();
+  $('#csend').onclick=()=>{const v=$('#cin').value.trim();if(v)sendChat(v)};
+  $('#cin').onkeydown=e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey))$('#csend').click()};
+  $('#cdict').onclick=()=>dictate($('#cin'));
+  const cc=$('#cclear');if(cc)cc.onclick=()=>{CHAT=[];viewAsk()};
+  $$('[data-s]').forEach(b=>b.onclick=()=>sendChat(b.dataset.s));
+}
+function drawChat(){
+  const t=$('#thread');if(!t||!CHAT.length)return;
+  t.innerHTML=CHAT.map((m,i)=>`<div class="turn ${m.role==='agent'?'q':'a'}">
+      <div class="w">${m.role==='agent'?'Your agent':'You'}</div>
+      <div class="tx">${esc(m.text)}</div>
+      ${m.act?`<div class="toolbar"><button class="sm" data-act="${i}">${esc(m.act.label)}</button></div>`:''}
+    </div>`).join('');
+  $$('[data-act]').forEach(b=>b.onclick=()=>{
+    const m=CHAT[+b.dataset.act];
+    if(m.act.kind==='log')return location.hash='#/new';
+    if(m.act.id)location.hash='#/result/'+m.act.id;
+    route();setTimeout(runAgent,250);
+  });
+}
+async function sendChat(text,already){
+  if(!already)CHAT.push({role:'you',text});
+  const box=$('#cin');if(box)box.value='';
+  drawChat();
+  const tick=waiting($('#cwait'),'your agent is thinking');
+  try{
+    const hist=CHAT.slice(-9,-1).map(m=>({role:m.role,text:m.text}));
+    const {job}=await api('/api/chat',{method:'POST',
+      body:JSON.stringify({message:text,history:hist})});
+    const r=await poll(job,tick);
+    $('#cwait').innerHTML='';
+    const act=r.suggests?{kind:r.suggests,id:r.suggests_id,
+      label:r.suggests_label||(r.suggests==='log'?'Log it':'Do it')}:null;
+    CHAT.push({role:'agent',text:r.reply||'',act});
+    drawChat();
+  }catch(e){$('#cwait').innerHTML=`<div class="err">${esc(e.message)}</div>`}
+}
+
+/* ---------------------------------------------------------------- rest */
+/* Organised by the result, because that is the object. A person here is
+   somebody who could answer one specific question about one dead end, which
+   is a thing scientists actually do for each other. */
+async function viewConnections(){
+  const {results}=await api('/api/connections');
+  const total=results.reduce((n,r)=>n+r.people.length,0);
+  $('#root').innerHTML=shell(`<div><h1>Who could help</h1>
+    <p class="lede">Your agent put each of your results to every other agent. These are the
+      ones whose scientist could do something specific about it &mdash; a question worth
+      sending, not a collaboration agreed.</p></div>`,
+    total?`${results.filter(r=>r.people.length).map(r=>`
+      <h2>${esc(r.title)} <span class="n">${r.people.length}</span>
+        <span class="note">${r.asked} agents judged it, ${r.refused} said no</span></h2>
+      <table class="t"><colgroup><col style="width:22px"><col style="width:160px"><col><col style="width:62px"></colgroup>
+      <tbody>${r.people.map(m=>`<tr class="row" data-mid="${m.id}">
+        <td class="dot"><span class="mk known"></span></td>
+        <td>${esc(m.responder?.name||'')}
+          <span class="tiny" style="display:block">${esc((m.responder?.field||'').split('/')[0])}</span></td>
+        <td class="clip" title="${esc(m.response?.specifically||'')}">${esc(m.response?.specifically||'')}</td>
+        <td class="c">${m.intro?'drafted':'&mdash;'}</td></tr>`).join('')}</tbody></table>
+      <p class="tiny" style="margin-top:8px"><a class="lk" href="#/result/${r.id}">open the result</a></p>`).join('')}
+      ${results.filter(r=>!r.people.length).length?`
+        <h2>Asked, nobody could help <span class="n">${results.filter(r=>!r.people.length).length}</span></h2>
+        <table class="t"><colgroup><col><col style="width:120px"></colgroup>
+        <tbody>${results.filter(r=>!r.people.length).map(r=>`<tr class="row" data-go="#/result/${r.id}">
+          <td class="clip" title="${esc(r.title)}">${esc(r.title)}</td>
+          <td class="c">${r.refused} refused</td></tr>`).join('')}</tbody></table>
+        <p class="small" style="margin-top:9px">Not a failure. An agent that matched
+          everything to everything would be worthless, and each refusal named a reason.</p>`:''}`
+    :`<div class="empty"><b>Nothing yet.</b>
+       <p class="lede" style="margin:0 0 16px">Once your agent has read a result, it restates
+         it in other fields' vocabulary and puts it to every other agent. The ones whose
+         scientist could genuinely do something show up here, under the result they answer.</p>
+       <div class="chips"><a href="#/shelf"><button class="pri">Open the shelf</button></a></div></div>`,
+    'conn');
+  wire();
+  $$('tr.row[data-mid]').forEach(el=>el.onclick=()=>location.hash='#/match/'+el.dataset.mid);
+  $$('[data-go]').forEach(el=>el.onclick=()=>{location.hash=el.dataset.go;route()});
+}
+async function viewMatch(id){
+  const {match:m}=await api('/api/match?id='+id);
+  if(!m)throw new Error('connection not found');
+  const mine=ME.id===m.asker?.id,them=mine?m.responder:m.asker,r=m.response||{},intro=m.intro;
+  $('#root').innerHTML=shell(`<div><h1>${esc(them?.name||'Connection')}</h1>
+    <p class="lede">${esc(them?.field||'')}${them?.demo_persona?' &middot; demo persona':''}</p></div>`,`
+    <div class="verdict good"><span class="tag known">can help</span>
+      <span class="vt">${esc(r.specifically||'')}</span></div>
+    ${r.drawn_from?`<p class="tiny">From their profile: ${esc(r.drawn_from)}</p>`:''}
+    ${intro?`<h2>Why your agent thinks they could answer</h2><p class="why" style="font-size:15px">${esc(intro.why_this_works)}</p>
+      <h2>A question you could send them</h2>
+      <div class="msg" style="margin-top:10px">${esc(intro.to_asker&&mine?intro.to_asker:intro.to_responder)}</div>
+      <div style="margin-top:9px"><button class="sm" data-copy="${esc(mine?intro.to_asker:intro.to_responder)}">Copy message</button></div>
+      <dl class="facts">
+        <dt>First step</dt><dd>${esc(intro.first_step)}</dd>
+        <dt>Could fail</dt><dd>${esc(intro.what_could_go_wrong)}</dd></dl>`
+      :`<p class="lede">Your agent has not written the introduction yet.</p>`}
+    ${m.signal?`<h2>The request that started it</h2>
+      <p class="lede" style="margin-top:10px">${esc(m.signal.plain||'')}</p>`:''}
+    ${them?`<h2>What ${esc((them.name||'').split(' ')[0])} can do</h2>
+      <div class="chips" style="margin-top:10px">
+        ${(them.techniques||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}
+        ${(them.equipment||[]).map(t=>`<span class="tag known">${esc(t)}</span>`).join('')}</div>`:''}
+    `,'conn');
+  wire();$$('[data-copy]').forEach(b=>b.onclick=()=>copy(b.dataset.copy,b));
+}
+async function viewHelp(){
+  const {requests}=await api('/api/requests');
+  $('#root').innerHTML=shell(`<div><h1>Asked of you</h1>
+    <p class="lede">Other researchers' dead ends, judged by your agent against what you can
+      actually do. It refuses most of them &mdash; these are the ones where you could
+      genuinely answer something.</p></div>`,
+    requests.length?`<h2>Your agent said you could help <span class="n">${requests.length}</span></h2>
+      <table class="t"><colgroup><col style="width:22px"><col><col style="width:140px"><col style="width:46px"></colgroup>
+      <tbody>${requests.map(m=>`<tr class="row" data-mid="${m.id}">
+        <td class="dot"><span class="mk mech"></span></td>
+        <td class="clip" title="${esc(m.signal?.headline||'')}">${esc(m.signal?.headline||'')}</td>
+        <td class="c">${esc(m.asker?.name||'')}</td>
+        <td class="c">${ago(m.created)}</td></tr>
+      <tr class="det hide"><td colspan="4"><div class="card">
+        <p class="why"><b>You could:</b> ${esc(m.response?.specifically||'')}</p>
+        <p class="ev">${esc(m.signal?.plain||'')}</p>
+      </div></td></tr>`).join('')}</tbody></table>`
+    :`<div class="empty"><b>Nothing yet.</b>When another agent broadcasts a problem your skills fit, it lands here.</div>`,
+    'help');
+  wire();expandable();
+}
+async function viewNetwork(){
+  const {signals}=await api('/api/signals');
+  const all=[ME,...WORLD];
+  $('#root').innerHTML=shell(`<div><h1>Agents</h1>
+    <p class="lede">Every agent holds a profile of what its scientist can actually do.
+      That is what a match rests on, not a shared keyword.</p></div>`,`
+    <h2>Agents <span class="n">${all.length}</span></h2>
+    <table class="t"><colgroup><col style="width:22px"><col style="width:170px"><col><col style="width:54px"></colgroup>
+    <tbody>${all.map(s=>`<tr class="row">
+      <td class="dot"><span class="mk ${s.id===ME.id?'mech':''}"></span></td>
+      <td>${esc(s.name)}${s.demo_persona?'<span class="tiny" style="display:block">demo persona</span>':''}</td>
+      <td class="clip" title="${esc(s.field)}">${esc(s.field)}</td>
+      <td class="c">${s.n_open||0} open</td></tr>
+    <tr class="det hide"><td colspan="4"><div class="card">
+      <div class="chips">${(s.can_offer||[]).map(o=>`<span class="tag known">${esc(o)}</span>`).join('')}</div>
+      <div class="chips">${(s.techniques||[]).map(o=>`<span class="tag">${esc(o)}</span>`).join('')}</div>
+    </div></td></tr>`).join('')}</tbody></table>
+    <h2>Open requests <span class="n">${signals.length}</span>
+      <span class="note">restated so other fields can recognise them</span></h2>
+    <table class="t"><colgroup><col style="width:22px"><col><col style="width:150px"></colgroup>
+    <tbody>${signals.map(s=>`<tr class="row">
+      <td class="dot"><span class="mk scope"></span></td>
+      <td class="clip" title="${esc(s.headline||'')}">${esc(s.headline||'')}</td>
+      <td class="c">${esc(s.scientist?.name||'')}</td></tr>
+    <tr class="det hide"><td colspan="3"><div class="card">
+      <p class="why">${esc(s.plain||'')}</p></div></td></tr>`).join('')}</tbody></table>`,'net');
+  wire();expandable();
+}
+boot();
+</script>
+</body>
+</html>

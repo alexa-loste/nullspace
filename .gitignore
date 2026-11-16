@@ -1,0 +1,7 @@
+# Runtime state: seeded worlds, briefs, matches, events. Rebuilt by the seed
+# scripts, and it holds unpublished research, so it does not belong in git.
+data/
+*.log
+__pycache__/
+*.pyc
+.DS_Store

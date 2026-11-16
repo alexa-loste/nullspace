@@ -1,0 +1,457 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Nullspace Walkthrough</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500;600&display=swap">
+<style>
+/* Layout: one reading column; screens break out wider, annotations hang beneath. */
+:root{
+  --paper:#fbfaf9; --surface:#ffffff; --sunken:#f4f2f0;
+  --rule:#e4e1dc; --rule-2:#d6d2cb;
+  --ink:#1c1e21; --ink-2:#4e545b; --ink-3:#7c838c; --ink-4:#a2a8b0;
+  --accent:#1f5c7a; --accent-soft:#e8f0f4;
+  --good:#2e6b4f; --good-soft:#eaf2ed;
+  --warn:#8a6420; --warn-soft:#f6efe2;
+  --crit:#9b3a3a; --crit-soft:#f7ecec;
+  --serif:"IBM Plex Serif",Georgia,serif;
+  --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#15171a; --surface:#1b1e22; --sunken:#202428;
+  --rule:#2b2f35; --rule-2:#3a4047;
+  --ink:#e9ebee; --ink-2:#b2b8c0; --ink-3:#848b94; --ink-4:#656c75;
+  --accent:#7fb5cf; --accent-soft:#1a2c36;
+  --good:#7fc0a0; --good-soft:#18271f;
+  --warn:#d8ab63; --warn-soft:#2a2216;
+  --crit:#e08f8f; --crit-soft:#2c1c1c;
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --paper:#15171a; --surface:#1b1e22; --sunken:#202428;
+  --rule:#2b2f35; --rule-2:#3a4047;
+  --ink:#e9ebee; --ink-2:#b2b8c0; --ink-3:#848b94; --ink-4:#656c75;
+  --accent:#7fb5cf; --accent-soft:#1a2c36;
+  --good:#7fc0a0; --good-soft:#18271f;
+  --warn:#d8ab63; --warn-soft:#2a2216;
+  --crit:#e08f8f; --crit-soft:#2c1c1c;
+  color-scheme:dark;}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:400 16px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:40px 80px}
+h1,h2,h3{font-family:var(--serif);text-wrap:balance;margin:0}
+h1{font-size:34px;font-weight:600;letter-spacing:-.4px;line-height:1.2}
+h2{font-size:23px;font-weight:600;letter-spacing:-.2px;margin:56px 0 6px;
+  padding-top:22px;border-top:1px solid var(--rule)}
+h3{font-size:17.5px;font-weight:600;margin:30px 0 5px}
+p{margin:11px 0;max-width:68ch}
+a{color:var(--accent)}
+.sub{font-family:var(--mono);font-size:12px;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.8px;margin:0 0 10px}
+.lede{font-size:17.5px;line-height:1.62;color:var(--ink-2);max-width:66ch}
+.dim{color:var(--ink-3)}
+code,.mono{font-family:var(--mono);font-size:.88em;
+  font-variant-numeric:tabular-nums slashed-zero}
+code{background:var(--sunken);padding:1px 5px;border-radius:3px;color:var(--ink-2)}
+
+/* screens break the column */
+figure{margin:22px 0 0;max-width:100%;width:100%}
+figure img{display:block;width:100%;max-width:100%;border:1px solid var(--rule-2);
+  border-radius:4px;background:var(--surface)}
+figcaption{font-family:var(--mono);font-size:11.5px;color:var(--ink-4);
+  margin-top:7px;letter-spacing:.3px}
+
+ol.notes{list-style:none;counter-reset:n;padding:0;margin:16px 0 0;width:100%;
+  border-top:1px solid var(--rule)}
+ol.notes li{counter-increment:n;position:relative;padding:11px 2px 11px 40px;
+  border-bottom:1px solid var(--rule);
+  font-size:14.5px;line-height:1.55;color:var(--ink-2)}
+ol.notes li::before{content:counter(n);position:absolute;left:0;top:13px;
+  font-family:var(--mono);font-size:11px;
+  color:var(--accent);background:var(--accent-soft);border-radius:3px;
+  text-align:center;padding:2px 0;font-weight:500;width:26px}
+ol.notes b{color:var(--ink);font-weight:600}
+
+dl.glossary{margin:18px 0;width:100%;border-top:1px solid var(--rule);
+  display:flex;flex-wrap:wrap}
+dl.glossary dt{font-family:var(--mono);font-size:12.5px;color:var(--accent);
+  padding:11px 12px 11px 2px;border-bottom:1px solid var(--rule);font-weight:500;
+  flex:0 0 150px;width:150px}
+dl.glossary dd{margin:0;padding:11px 2px;border-bottom:1px solid var(--rule);
+  font-size:14.5px;line-height:1.55;color:var(--ink-2);
+  flex:1 1 320px;min-width:0}
+@media(max-width:620px){
+  dl.glossary dt{flex:1 1 100%;width:auto;border-bottom:0;padding-bottom:0}
+  dl.glossary dd{flex:1 1 100%}}
+
+.state{margin:16px 0;width:100%;border-top:1px solid var(--rule)}
+.state .r{display:flex;align-items:flex-start;gap:12px;padding:10px 2px;
+  border-bottom:1px solid var(--rule);font-size:14.5px;line-height:1.55;
+  color:var(--ink-2);flex-wrap:wrap}
+.state .r>div{flex:1 1 300px;min-width:0}
+.tag{font-family:var(--mono);font-size:10.5px;font-weight:500;padding:2px 7px;
+  border-radius:3px;letter-spacing:.3px;white-space:nowrap;justify-self:start;
+  text-transform:uppercase}
+.t-real{background:var(--good-soft);color:var(--good)}
+.t-staged{background:var(--warn-soft);color:var(--warn)}
+.t-no{background:var(--crit-soft);color:var(--crit)}
+.t-next{background:var(--accent-soft);color:var(--accent)}
+
+.callout{border-left:2px solid var(--accent);background:var(--surface);
+  padding:14px 18px;margin:22px 0;max-width:68ch}
+.callout .ct{font-weight:600;margin-bottom:4px;font-family:var(--serif);font-size:16.5px}
+.callout p{margin:6px 0 0;font-size:15px;color:var(--ink-2)}
+.callout.warn{border-left-color:var(--warn)}
+
+/* mock screens, drawn not screenshotted */
+.mock{border:1px solid var(--rule-2);border-radius:4px;background:var(--surface);
+  margin:18px 0;overflow:hidden;font-size:13px}
+.mock .mb{border-bottom:1px solid var(--rule);padding:9px 14px;
+  font-family:var(--mono);font-size:11px;color:var(--ink-3);
+  background:var(--sunken);letter-spacing:.4px;text-transform:uppercase}
+.mock .mc{padding:16px 18px}
+.mrow{display:flex;gap:10px;align-items:baseline;padding:8px 0;
+  border-bottom:1px solid var(--rule);line-height:1.45}
+.mrow:last-child{border-bottom:0}
+.mrow .mk{width:7px;height:7px;border-radius:50%;flex:none;align-self:center;
+  background:var(--ink-4)}
+.mrow .mk.g{background:var(--good)} .mrow .mk.w{background:var(--warn)}
+.mrow .mt{flex:1;min-width:0;color:var(--ink)}
+.mrow .mm{font-family:var(--mono);font-size:11px;color:var(--ink-4);flex:none}
+.mlabel{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.7px;color:var(--ink-4);margin:14px 0 5px;font-weight:500}
+.mlabel:first-child{margin-top:0}
+.mchip{display:inline-block;font-size:11.5px;padding:3px 8px;border:1px solid var(--rule-2);
+  border-radius:3px;color:var(--ink-2);margin:0 4px 4px 0;background:var(--paper)}
+.mbtn{display:inline-block;font-size:12.5px;padding:5px 11px;border-radius:4px;
+  background:var(--accent);color:var(--paper);font-weight:500}
+.mbtn.o{background:transparent;border:1px solid var(--rule-2);color:var(--ink-2)}
+.q{font-size:14px;color:var(--ink-2);border-left:2px solid var(--rule-2);
+  padding:4px 0 4px 12px;margin:10px 0;line-height:1.55}
+
+.ask{background:var(--sunken);border:1px solid var(--rule);border-radius:4px;
+  padding:16px 18px;margin:18px 0;max-width:68ch}
+.ask .at{font-family:var(--mono);font-size:11px;text-transform:uppercase;
+  letter-spacing:.7px;color:var(--accent);margin-bottom:8px;font-weight:500}
+.ask ul{margin:0;padding-left:18px}
+.ask li{margin:7px 0;font-size:14.5px;line-height:1.55;color:var(--ink-2)}
+.ask li b{color:var(--ink);font-weight:600}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--rule);
+  font-family:var(--mono);font-size:11.5px;color:var(--ink-4);line-height:1.7}
+</style>
+
+<div class="wrap">
+
+<p class="sub">Walkthrough &middot; built 16 November 2026</p>
+<h1>Nullspace</h1>
+<p class="lede">A repository for experiments that did not work. You log one, an agent
+interviews you to capture it properly, then reads the literature against it &mdash; including
+fields you would not search yourself &mdash; and finds the people who could settle it.</p>
+
+<p>This page exists so two people can look at the same thing and disagree about it. Every
+screenshot below is the running app, not a mockup. Where something is staged rather than
+real, it says so.</p>
+
+<div class="callout">
+  <div class="ct">The one idea</div>
+  <p>A negative result usually dead-ends because the person who has it cannot see the
+  work that explains it. That work often exists &mdash; in an adjacent field, or published after
+  they shelved the project. Agents can go and look. Labs start private, so the first payoff
+  is internal: a student inheriting a dead-ended project gets the context instead of
+  starting from zero.</p>
+</div>
+
+<h2>The pieces</h2>
+<p>Five objects. Everything on screen is one of these.</p>
+
+<dl class="glossary">
+  <dt>Result</dt>
+  <dd>One experiment that did not work, captured as a structured card: what was expected,
+    what was observed, what was ruled out, and what nobody checked. The primary object &mdash;
+    everything else hangs off it.</dd>
+  <dt>Agent</dt>
+  <dd>Belongs to one scientist. Holds their profile (techniques, instruments, what they
+    could do for someone else) and their open results. Decides its own next action rather
+    than waiting to be told.</dd>
+  <dt>Brief</dt>
+  <dd>What an agent produces after reading the literature against a result: ranked
+    explanations, each with the papers behind it and one experiment that would settle it.</dd>
+  <dt>Request</dt>
+  <dd>A result restated in other fields' vocabulary and put to every other agent. This is
+    the cross-field step, and the one a keyword search cannot do.</dd>
+  <dt>Connection</dt>
+  <dd>Another agent read a request, checked it against what its own scientist can actually
+    do, and said yes. It then drafts the introduction for both people.</dd>
+</dl>
+
+<h2>1 &middot; The shelf</h2>
+<p>Where you land. Everything shelved in your lab, newest first, one line each. This is the
+screen a student inheriting a project opens.</p>
+
+<figure>
+  <img src="01-shelf.jpg" alt="The shelf: Isaacs Lab with five shelved results in two sections, Unresolved and Informative nulls.">
+  <figcaption>Shelf &middot; Isaacs Lab, 4 members, 5 shelved results</figcaption>
+</figure>
+
+<ol class="notes">
+  <li><b>Two sections, not one.</b> <em>Unresolved</em> means something went wrong and
+    nobody knows why. <em>Informative nulls</em> means the experiment was well controlled
+    and the absence is itself a finding. These carry different quality bars and different
+    incentives, and mixing them is how a repository becomes a dumping ground.</li>
+  <li><b>The dot</b> is the kind of the best-supported explanation: mechanism, artifact,
+    narrower than assumed, or already answered. Grey means nobody has looked yet.</li>
+  <li><b><span class="mono">14 since</span></b> counts papers published after the year the
+    experiment was done. It is the forward-looking signal: this result has been sitting
+    while the field moved.</li>
+  <li><b><span class="mono">1 can help</span></b> means another scientist's agent read this
+    and said its own scientist could do something specific about it.</li>
+  <li><b>Owner and year</b> sit right-aligned in monospace, so the column scans.</li>
+</ol>
+
+<h2>2 &middot; Logging a result</h2>
+<p>The front door. Deliberately the least demanding screen in the product, because the
+thing being asked for is something people normally throw away.</p>
+
+<figure>
+  <img src="02-log.jpg" alt="Log a result: a file drop zone, a free-text box, a dictate button, and three example chips.">
+  <figcaption>Log a result &middot; files, text, voice, or an example</figcaption>
+</figure>
+
+<ol class="notes">
+  <li><b>Drop files</b> takes notebook pages, a slide, a method. Currently reads text files
+    only &mdash; a PDF or a photographed notebook page will not parse yet.</li>
+  <li><b>Or write it</b> accepts anything: a lab-notebook paragraph, a slide caption, the
+    message you sent your PI. The agent asks about the rest.</li>
+  <li><b>Dictate</b> uses the browser's own speech recognition. Chrome only.</li>
+  <li><b>The three examples</b> fill the box with a realistic notebook entry, so the whole
+    product can be walked through without typing anything.</li>
+</ol>
+
+<h2>3 &middot; The interview</h2>
+<p>Four to six questions. The agent decides when it has enough and stops.</p>
+
+<figure>
+  <img src="03-interview.jpg" alt="The interview: the pasted notebook entry above, and the agent's first question about siRNA knockdown efficiency and rescue.">
+  <figcaption>Interview &middot; question 1 of about 5</figcaption>
+</figure>
+
+<p>The question that came back on the knockout example:</p>
+<p class="q">You said the siRNA knockdown gave 40% slower closure twice &mdash; in that experiment,
+what did the Western show for knockdown efficiency, and was the siRNA phenotype ever rescued
+(e.g. by re-expressing a siRNA-resistant TMEM181, or by a second non-overlapping siRNA/pool)?</p>
+<p>That is the right question. It probes whether the original siRNA result &mdash; the reason
+anyone expected a phenotype &mdash; was itself an off-target artifact.</p>
+
+<figure>
+  <img src="04-autoanswer.jpg" alt="The interview with an answer filled in from the notebook material, saying the knockdown efficiency was never checked.">
+  <figcaption>Interview &middot; answered from the notebook</figcaption>
+</figure>
+
+<ol class="notes">
+  <li><b>Never checked</b> is a first-class button, beside Answer. For a real null the
+    honest answer to "what was your positive control?" is often that there wasn't one. A
+    tool that punishes you for not knowing gets closed.</li>
+  <li><b>Answer from the notebook</b> is the walkthrough affordance. It answers as that
+    scientist from the underlying material, and it will say it never checked where the
+    material genuinely doesn't cover it &mdash; here it volunteers that the siRNA result may have
+    been the artifact rather than the knockout.</li>
+  <li><b>That's enough</b> ends the interview early. The scientist is always allowed to stop.</li>
+</ol>
+
+<h2>4 &middot; The result</h2>
+<p>The screen that has to be judgeable in fifteen seconds.</p>
+
+<figure>
+  <img src="05-result.jpg" alt="A result page: a verdict block, then five one-line explanations with confidence marks, then papers published since the result was shelved.">
+  <figcaption>Result &middot; strictosidine not detected, 2022</figcaption>
+</figure>
+
+<ol class="notes">
+  <li><b>The verdict</b> is in plain language, not a score. Four states: a real result
+    needing a different explanation; cannot tell you anything yet; already answered in the
+    literature; real but narrower than assumed.</li>
+  <li><b>One line per explanation.</b> Claim, confidence mark, kind, reference count.
+    Clicking opens the reasoning, the papers and the experiment <em>in place</em> rather
+    than navigating away.</li>
+  <li><b>The confidence mark</b> is how well the retrieved literature supports it, not how
+    true it is. The agent is told to be hard on itself: a hypothesis with no supporting
+    paper rarely clears 30%.</li>
+  <li><b>Published since this was shelved</b> is the forward-looking section. Fourteen
+    papers here did not exist when the experiment was run.</li>
+  <li><b><span class="mono">found by:</span></b> under each paper shows the query that
+    retrieved it. This is what makes the output checkable rather than assertive.</li>
+</ol>
+
+<div class="callout">
+  <div class="ct">What the agent found on its own</div>
+  <p>Explanation 4 on this result reads: <em>the question is now answered in the
+  literature &mdash; strictosidine and full camptothecin reconstitution in S. cerevisiae have
+  both been achieved, so this is a reproducibility gap against a published route rather
+  than an open question.</em> It cites Zhang 2026 (complete camptothecin pathway, de novo
+  in yeast), Dror 2023 and Bradley 2023, and flags the 2026 one as an unreviewed preprint.
+  A separate research pass, run independently, surfaced the same papers.</p>
+</div>
+
+<figure>
+  <img src="06-since.jpg" alt="The full list of fourteen papers published since the result was shelved, each with the search query that found it.">
+  <figcaption>Published since this was shelved &middot; 14 papers, 2023 to 2026</figcaption>
+</figure>
+
+<h2>5 &middot; A connection</h2>
+<p>What happens when another agent says yes.</p>
+
+<figure>
+  <img src="07-match.jpg" alt="A connection page: why these two, the message to send, first step, what could go wrong, and what the other scientist can do.">
+  <figcaption>Connection &middot; Mirela Vanchev, translational control</figcaption>
+</figure>
+
+<ol class="notes">
+  <li><b>Why these two</b> names the specific technique that bridges them, not a shared
+    interest. Here: the result has two candidate mechanisms a plate reader cannot separate,
+    and distinguishing them is a method this person already runs.</li>
+  <li><b>The message to send</b> is drafted for you, with a copy button. No flattery, no
+    pitch &mdash; it states the result, the specific question, and what is on offer in return.</li>
+  <li><b>What could go wrong</b> is always present. An introduction that only argues for
+    itself is not useful to a scientist.</li>
+  <li><b>What they can do</b> lists techniques and instruments. A match rests on
+    capability, never on a shared keyword.</li>
+</ol>
+
+<div class="callout">
+  <div class="ct">Most answers are no</div>
+  <p>Across the seeded network, 25 requests were judged and 10 accepted. The agent doing the
+  judging is written to refuse by default: adjacency of field is not a match, interest is not
+  a match, being able to read the paper is not a match. Only a technique, an instrument or a
+  judgement its own scientist actually has counts. The refusals are what make an acceptance
+  worth reading.</p>
+</div>
+
+<h2>What is real and what is staged</h2>
+<p>Worth being exact about, because the demo depends on it and a collaborator should not
+have to guess.</p>
+
+<div class="state">
+  <div class="r"><span class="tag t-real">real</span><div>The literature. Live OpenAlex
+    search, no key, no cached corpus.</div></div>
+  <div class="r"><span class="tag t-real">real</span><div>Every citation. The model may cite
+    papers only by index into what the search actually returned; anything else is dropped
+    before display.</div></div>
+  <div class="r"><span class="tag t-real">real</span><div>People suggested for contact.
+    Checked against retrieved author lists and rejected if absent.</div></div>
+  <div class="r"><span class="tag t-real">real</span><div>Alexa's two results, from her own
+    work in the Isaacs lab at Yale. One carries a known answer, so the agent can be scored
+    against what she actually concluded. It last scored <em>partial</em>.</div></div>
+  <div class="r"><span class="tag t-staged">staged</span><div>Eight of the nine scientists
+    are invented demo personas, labelled on every card. The network effect is staged, and no
+    claim about matching quality at scale survives that.</div></div>
+  <div class="r"><span class="tag t-staged">staged</span><div>The three worked examples are
+    written, not collected from real labs.</div></div>
+  <div class="r"><span class="tag t-no">not yet</span><div>Agents only act when something
+    ticks them. Nothing runs on a schedule, so "your agent worked while you were away" is
+    true within a session, not across days.</div></div>
+  <div class="r"><span class="tag t-no">not yet</span><div>File upload reads text only. PDFs
+    and photographed notebook pages do not parse.</div></div>
+  <div class="r"><span class="tag t-no">not yet</span><div>An agent judges a written profile.
+    It cannot tell whether a stated technique is one someone has actually used.</div></div>
+  <div class="r"><span class="tag t-no">not yet</span><div>Agents reason from abstracts, not
+    full text.</div></div>
+</div>
+
+<h2>Screens not yet built</h2>
+<p>Drawn here rather than coded, so they can be argued with before anyone spends hours on
+them. These are proposals.</p>
+
+<h3>Inheriting a project</h3>
+<p>The clearest first user is a student picking up something that dead-ended before they
+arrived. Today they would read the result page, which is written for the person who ran the
+experiment. This is the same data, addressed to the person who did not.</p>
+
+<div class="mock">
+  <div class="mb">Proposal &middot; Pick this up</div>
+  <div class="mc">
+    <div class="mlabel">Where this stopped</div>
+    <div style="color:var(--ink);line-height:1.5">Three months in. The knockout was made and
+      confirmed; the phenotype never appeared. Nobody established what protein the cells
+      actually make.</div>
+    <div class="mlabel">What you would need</div>
+    <div><span class="mchip">C-terminal antibody</span><span class="mchip">qPCR primers for the target</span><span class="mchip">a second migration assay</span></div>
+    <div class="mlabel">What is already in the freezer</div>
+    <div class="mrow"><span class="mk g"></span><span class="mt">Clones 2B and 7F, sequence confirmed</span><span class="mm">box 14</span></div>
+    <div class="mrow"><span class="mk g"></span><span class="mt">Parental HEK293T, matched passage</span><span class="mm">box 14</span></div>
+    <div class="mrow"><span class="mk w"></span><span class="mt">siRNA from the original knockdown &mdash; never validated</span><span class="mm">box 7</span></div>
+    <div class="mlabel">The cheapest thing that would move it</div>
+    <div style="color:var(--ink);line-height:1.5">Tag both termini and run a Western. If a
+      product is present, the premise changes; if not, the question moves to compensation.</div>
+    <div style="margin-top:14px"><span class="mbtn">Take this on</span>
+      <span class="mbtn o" style="margin-left:6px">Ask Wei what happened</span></div>
+  </div>
+</div>
+
+<h3>Before it leaves the lab</h3>
+<p>Private by default was the point. Something has to govern the moment a result becomes
+visible outside, or the public tier fills with work nobody stands behind.</p>
+
+<div class="mock">
+  <div class="mb">Proposal &middot; Share this result</div>
+  <div class="mc">
+    <div class="mlabel">Who can see it now</div>
+    <div class="mrow"><span class="mk g"></span><span class="mt">Isaacs Lab &mdash; 4 people</span><span class="mm">current</span></div>
+    <div class="mlabel">Widen to</div>
+    <div class="mrow"><span class="mk"></span><span class="mt">Labs you collaborate with &mdash; 2 labs, 11 people</span><span class="mm">needs 1 sign-off</span></div>
+    <div class="mrow"><span class="mk"></span><span class="mt">Anyone on Nullspace</span><span class="mm">needs 1 sign-off</span></div>
+    <div class="mlabel">Your agent flagged, before you share</div>
+    <div class="mrow"><span class="mk w"></span><span class="mt">No positive control for detection &mdash; a true negative cannot be separated from a detection failure</span></div>
+    <div class="mrow"><span class="mk w"></span><span class="mt">m/z alone; no MS/MS to confirm intermediate identity</span></div>
+    <div class="mlabel">How confident are you the effect is real?</div>
+    <div><span class="mchip">Certain</span><span class="mchip" style="border-color:var(--accent);color:var(--accent)">Fairly</span><span class="mchip">Unsure</span><span class="mchip">Cannot tell</span></div>
+    <div style="margin-top:14px"><span class="mbtn">Ask Farren to sign off</span></div>
+  </div>
+</div>
+
+<h3>Agents reading the published literature</h3>
+<p>From the original idea and not yet built: agents that find negative results inside
+published papers &mdash; a failed sub-experiment, a null buried in a supplement &mdash; rather than
+waiting for someone to log one. It is how the shelf fills before anyone adopts the product.</p>
+
+<div class="mock">
+  <div class="mb">Proposal &middot; Found in the literature</div>
+  <div class="mc">
+    <div class="mrow"><span class="mk w"></span><span class="mt">Supplementary Fig. 4 reports no activity for the &Delta;N construct; the main text does not mention it</span><span class="mm">2024</span></div>
+    <div class="mrow"><span class="mk w"></span><span class="mt">"We were unable to detect the predicted intermediate" &mdash; discussion, paragraph 3</span><span class="mm">2023</span></div>
+    <div class="mrow"><span class="mk w"></span><span class="mt">Three of six strains gave no phenotype; only the three positives are discussed</span><span class="mm">2025</span></div>
+    <div style="margin-top:14px"><span class="mbtn o">Add to the shelf</span>
+      <span style="color:var(--ink-4);font-size:12px;margin-left:8px">needs the author's confirmation before it is attributed</span></div>
+  </div>
+</div>
+
+<h2>What to argue about</h2>
+<p>The places where a second opinion would actually change what gets built.</p>
+
+<div class="ask">
+  <div class="at">Open questions</div>
+  <ul>
+    <li><b>Is the shelf the right home screen?</b> It assumes browsing your lab's dead ends
+      is the recurring act. The alternative is a digest of what changed since you last
+      looked, which is forward-looking but empty on day one.</li>
+    <li><b>Does the confidence mark help or mislead?</b> It is the model's own number and is
+      calibrated against nothing. Showing it may imply more rigour than exists.</li>
+    <li><b>Should a result be shareable before anyone signs off?</b> Friction protects
+      quality and also kills adoption.</li>
+    <li><b>Is "most answers are no" legible as a feature?</b> Right now the refusals are
+      counted but not shown. Showing them would make the discrimination visible and the
+      network look emptier.</li>
+    <li><b>Who is the credit for?</b> A contribution record is worthless unless some
+      recognised group commits to using it, and nothing here establishes that.</li>
+  </ul>
+</div>
+
+<footer>
+  Nullspace &middot; walkthrough of the build as of 16 November 2026<br>
+  Screens are the running app. Demo personas are labelled throughout.<br>
+  Literature via OpenAlex. Agents run on Claude Opus 5.5.
+</footer>
+
+</div>
