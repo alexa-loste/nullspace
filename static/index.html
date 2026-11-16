@@ -225,19 +225,37 @@ mark{background:var(--marker);color:var(--ink);padding:0 2px}
 .tally{margin-left:auto;font-size:13px;color:var(--soft)}
 
 
-/* ---- the grid: the aggregate claim, legible from the back of a room ---- */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:5px;
+/* ---- the wall: one card per result, because a square with a colour on it
+   is not a unit of science. The card carries what was expected, what was seen,
+   and what the field has since done about it. ---- */
+.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:10px;
   margin-top:16px}
-.cell{aspect-ratio:1;border:1px solid var(--line);background:var(--tint);
-  border-radius:2px;position:relative;cursor:pointer;transition:background .45s ease,
-  border-color .45s ease,transform .18s ease}
-.cell:hover{transform:scale(1.14);z-index:2;border-color:var(--ink)}
-.cell .yr{position:absolute;inset:auto 0 2px 0;text-align:center;font-size:9px;
-  font-family:var(--mono);color:var(--faint);opacity:.75}
-.cell.green{background:#2f7d4f;border-color:#276a42}
-.cell.amber{background:#c08a2a;border-color:#a3741f}
-.cell.red{background:#9b3a3a;border-color:#853131}
-.cell.green .yr,.cell.amber .yr,.cell.red .yr{color:rgba(255,255,255,.85)}
+.unit{border:1px solid var(--line);background:var(--surface);border-top:3px solid var(--line-2);
+  padding:11px 12px 10px;cursor:pointer;display:flex;flex-direction:column;gap:6px;
+  min-height:152px;transition:border-color .4s ease,box-shadow .18s ease,transform .18s ease}
+.unit:hover{box-shadow:0 2px 0 var(--line-2);transform:translateY(-1px);border-color:var(--line-2)}
+.unit .hd{display:flex;align-items:baseline;gap:7px;font-size:11px;letter-spacing:.6px;
+  text-transform:uppercase;font-weight:600;color:var(--faint)}
+.unit .hd .st{margin-left:auto;font-size:10.5px}
+.unit .cl{font-size:14px;line-height:1.3;font-weight:500;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.unit .ob{font-size:12.5px;line-height:1.4;color:var(--soft);
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.unit .ft{margin-top:auto;font-size:11.5px;color:var(--faint);display:flex;gap:6px;
+  align-items:baseline}
+.unit .ft .y{font-family:var(--mono)}
+.unit.green{border-top-color:#2f7d4f}
+.unit.amber{border-top-color:#c08a2a}
+.unit.red{border-top-color:#9b3a3a}
+.unit.green .hd .st{color:#2f7d4f}
+.unit.amber .hd .st{color:#a3741f}
+.unit.red .hd .st{color:#9b3a3a}
+.unit.green{background:linear-gradient(0deg,var(--surface),var(--surface)),#2f7d4f10}
+.unit .mv{font-size:12.5px;line-height:1.4;border-top:1px solid var(--line);padding-top:6px;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.unit.green .mv{color:#2f7d4f}
+.unit.amber .mv{color:#8a6420}
+.unit.red .mv{color:#9b3a3a}
 .scrub{display:flex;align-items:center;gap:14px;margin-top:18px;max-width:620px}
 .scrub input[type=range]{flex:1;width:auto;padding:0;border:0;background:transparent;
   accent-color:var(--accent)}
@@ -246,8 +264,6 @@ mark{background:var(--marker);color:var(--ink);padding:0 2px}
 .keys{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--soft)}
 .keys b{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:6px;
   vertical-align:-1px}
-.tip{border:1px solid var(--line);background:var(--surface);padding:11px 13px;
-  margin-top:14px;min-height:62px;font-size:14.5px;line-height:1.5;max-width:76ch}
 
 /* ---- landing: wide, so the product is visible before anyone signs up ---- */
 .land{max-width:860px;margin:0 auto;padding:46px 26px 80px}
@@ -816,12 +832,13 @@ async function viewRecord(){
 }
 
 
-/* ---------------------------------------------------------------- grid
-   The aggregate claim in one screen: a lab's nulls do not stay dead. Drag the
-   year and watch the field move under them. The dates are real - each cell
-   changes colour in the publication year of the work that changed it - so this
-   is a record, not an animation. */
-let GRID=null,GY=null;
+/* ---------------------------------------------------------------- wall
+   The aggregate claim in one screen, as units rather than pixels. Each card is
+   a result somebody actually has: what they expected, what they saw. Drag the
+   year and the cards change — not just their colour, their contents, because
+   what changed is what the literature now says about them. Every date is a
+   real publication date, so this is a record and not an animation. */
+let GRID=null,GY=null,GFILT='all';
 async function viewGrid(){
   if(!GRID)GRID=await api('/api/answerable');
   const rows=(GRID.rows||[]).slice().sort((a,b)=>(a.year||0)-(b.year||0));
@@ -829,41 +846,32 @@ async function viewGrid(){
     .concat(rows.map(r=>r.changed_in).filter(Boolean));
   const y0=Math.min(...years,2015),y1=Math.max(...years,new Date().getFullYear());
   if(GY==null)GY=y1;
-  const shown=rows.filter(r=>!r.year||r.year<=GY);
-  const n=k=>shown.filter(r=>stateAt(r,GY)===k).length;
 
   $('#root').innerHTML=shell(
     `<div><h1>What happens to a null</h1>
-      <p class="lede">Every result in this repository, one square each, from the year it
-        was shelved. A square changes colour in the year the work that changed it was
-        published &mdash; so this is a record of what the literature actually did, not
-        an animation.</p></div>`,`
+      <p class="lede">Every result in this repository, one card each, from the year it was
+        shelved. Drag the year: a card changes in the year the work that changed it was
+        actually published. Nothing here is on a timer.</p></div>`,`
     <div class="scrub">
       <span class="yr" id="gy">${GY}</span>
       <input type="range" id="gsl" min="${y0}" max="${y1}" step="1" value="${GY}">
       <button class="sm" id="gplay">Play</button></div>
     <div class="keys">
-      <span><b style="background:var(--tint);border:1px solid var(--line)"></b>shelved, nothing since</span>
+      <span><b style="background:var(--line-2)"></b>shelved, nothing since</span>
       <span><b style="background:#c08a2a"></b>question narrowed</span>
       <span><b style="background:#2f7d4f"></b>answerable now</span>
       <span><b style="background:#9b3a3a"></b>someone else published it</span></div>
-
-    <div class="stats">
-      <div class="stat"><span class="v">${shown.length}</span><span class="l">shelved by ${GY}</span></div>
-      <div class="stat"><span class="v" style="color:#2f7d4f">${n('green')}</span>
-        <span class="l">worth picking up</span></div>
-      <div class="stat"><span class="v" style="color:#c08a2a">${n('amber')}</span>
-        <span class="l">narrowed</span></div>
-      <div class="stat"><span class="v" style="color:#9b3a3a">${n('red')}</span>
-        <span class="l">scooped</span></div>
-    </div>
-
-    <div class="grid" id="gw"></div>
-    <div class="tip" id="gtip"><span class="small">Hover a square. Drag the year to watch
-      the field move under them.</span></div>
-    ${rows.length<40?`<p class="tiny" style="margin-top:14px">${rows.length} real results.
-      Each is a published paper or a logged experiment, and every colour change is a real
-      publication date. Nothing is filled in to make the grid look busier.</p>`:''}
+    <div class="stats" id="gstats"></div>
+    <div class="toolbar" id="gfilt">
+      ${[['all','Everything'],['green','Worth picking up'],['amber','Narrowed'],
+         ['grey','Still nothing']].map(([k,l])=>
+        `<button class="sm ${GFILT===k?'pri':''}" data-f="${k}">${l}</button>`).join('')}
+      <span class="tally" id="gcount"></span></div>
+    <div class="wall" id="gw"></div>
+    <p class="tiny" style="margin-top:16px">${rows.length} real results. Each is a logged
+      experiment or a negative result an agent pulled out of a published paper, and every
+      change of state is dated by the paper that caused it. Nothing is filled in to make
+      the wall look busier.</p>
     `,'grid');
   wire();paintGrid(rows);
   const sl=$('#gsl');
@@ -871,37 +879,61 @@ async function viewGrid(){
   $('#gplay').onclick=()=>{
     let y=y0;const t=setInterval(()=>{
       if(y>y1){clearInterval(t);return;}
-      GY=y;sl.value=y;$('#gy').textContent=y;paintGrid(rows);y++;},620);};
+      GY=y;sl.value=y;$('#gy').textContent=y;paintGrid(rows);y++;},700);};
+  $$('#gfilt [data-f]').forEach(b=>b.onclick=()=>{GFILT=b.dataset.f;viewGrid();});
 }
-/* A null is grey until the work that changes it is published, then it takes
-   the colour of what that work did to it. Nothing is coloured before its own
-   evidence exists. */
+/* A card is grey until the work that changes it exists. Nothing is coloured
+   before its own evidence is published. */
 function stateAt(r,y){
-  if(!r.year||r.year>y)return 'future';
+  // An undated result cannot be placed on the timeline, so it sits grey
+  // throughout rather than pretending to a year it does not have.
+  if(!r.year)return 'grey';
+  if(r.year>y)return 'future';
   if(!r.changed_in||r.changed_in>y)return 'grey';
   if(r.scooped)return 'red';
   if(r.overall==='resolved')return 'green';
   if(r.overall==='narrowed')return 'amber';
   return 'grey';
 }
-/* Repaint in place: re-rendering the whole page would lose the drag. */
+const STATE_WORD={grey:'no answer yet',amber:'narrowed',green:'answerable',
+  red:'published by others'};
+
 function paintGrid(rows){
-  const shown=rows.filter(r=>!r.year||r.year<=GY);
+  const all=rows.filter(r=>!r.year||r.year<=GY);
+  const shown=GFILT==='all'?all:all.filter(r=>stateAt(r,GY)===GFILT);
+  const k=s=>all.filter(r=>stateAt(r,GY)===s).length;
+
+  const st=$('#gstats');
+  if(st)st.innerHTML=`
+    <div class="stat"><span class="v">${all.length}</span>
+      <span class="l">shelved by ${GY}</span></div>
+    <div class="stat"><span class="v" style="color:#2f7d4f">${k('green')}</span>
+      <span class="l">worth picking up</span></div>
+    <div class="stat"><span class="v" style="color:#c08a2a">${k('amber')}</span>
+      <span class="l">narrowed</span></div>
+    <div class="stat"><span class="v" style="color:#9b3a3a">${k('red')}</span>
+      <span class="l">someone else published it</span></div>`;
+  const ct=$('#gcount');
+  if(ct)ct.textContent=`${shown.length} of ${all.length} shown`;
+
   const w=$('#gw');if(!w)return;
-  w.innerHTML=shown.map((r,i)=>{const st=stateAt(r,GY);
-    return `<div class="cell ${st==='grey'?'':st}" data-i="${i}"
-      title="${esc(r.title||'')}"><span class="yr">${r.year||''}</span></div>`;}).join('');
-  $$('#gw .cell').forEach(c=>{const r=shown[+c.dataset.i];
-    c.onclick=()=>{location.hash='#/result/'+r.id;route();};
-    c.onmouseenter=()=>{$('#gtip').innerHTML=`<b>${esc(r.title||'')}</b>
-      <span class="tiny" style="display:block">${esc(r.lab||'')} &middot; shelved ${r.year||'?'}${
-        r.changed_in?' &middot; changed '+r.changed_in:''}</span>
-      ${r.what_the_field_did?`<span class="small" style="display:block;margin-top:4px">${
-        esc(r.what_the_field_did)}</span>`:''}`;};});
-  const st=$$('.stat .v'),k=s=>shown.filter(r=>stateAt(r,GY)===s).length;
-  if(st.length>=4){st[0].textContent=shown.length;st[1].textContent=k('green');
-    st[2].textContent=k('amber');st[3].textContent=k('red');}
-  const lbl=$$('.stat .l')[0];if(lbl)lbl.textContent='shelved by '+GY;
+  w.innerHTML=shown.map((r,i)=>{
+    const s=stateAt(r,GY),moved=s!=='grey';
+    return `<article class="unit ${s==='grey'?'':s}" data-i="${i}">
+      <div class="hd"><span>${esc((r.lab||'').replace(' Lab',''))}</span>
+        <span class="st">${esc(STATE_WORD[s]||'')}</span></div>
+      <div class="cl">${esc(r.title||'')}</div>
+      ${r.observed?`<div class="ob">${esc(r.observed)}</div>`:''}
+      ${moved&&r.what_the_field_did
+        ? `<div class="mv">Since ${r.changed_in}: ${esc(r.what_the_field_did)}</div>`:''}
+      <div class="ft"><span class="y">shelved ${r.year||'?'}</span>
+        ${r.origin==='literature'?'<span>&middot; from a paper</span>':''}
+        ${r.n_cosigns?`<span>&middot; ${r.n_cosigns} co-signed</span>`:''}
+        ${r.assigned_to?`<span>&middot; ${esc(r.assigned_to.split(' ')[0])} has it</span>`:''}
+      </div></article>`;}).join('')
+    || `<div class="empty"><b>Nothing in this state yet.</b></div>`;
+  $$('#gw .unit').forEach(c=>{const r=shown[+c.dataset.i];
+    c.onclick=()=>{location.hash='#/result/'+r.id;route();};});
 }
 
 /* ---------------------------------------------------------------- repository

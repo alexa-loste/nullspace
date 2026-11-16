@@ -455,6 +455,15 @@ class Handler(BaseHTTPRequestHandler):
                     # the timeline is real dates rather than an animation.
                     "changed_in": _changed_in(since, card),
                     "scooped": bool(since.get("someone_else_published_it")),
+                    # Enough of the result to read on a card. A card that only
+                    # carries a title is a square with words on it.
+                    "expected": card.get("expectation"),
+                    "observed": card.get("observation"),
+                    "project": card.get("project"),
+                    "top_claim": (hs[0].get("claim") if hs else None),
+                    "n_cosigns": len(pr.get("cosigns") or []),
+                    "confidence": pr.get("confidence"),
+                    "source_paper": (pr.get("source_paper") or {}).get("title"),
                 })
             order = {"resolved": 0, "narrowed": 1, "open": 2, None: 3}
             rows.sort(key=lambda r: (order.get(r["overall"], 3), -r["n_newer"]))

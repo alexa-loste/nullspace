@@ -329,3 +329,60 @@ def pending(only=None):
             out.append({"scientist_id": a.sid, "agent": a.name,
                         "action": n[0], "reason": n[2]})
     return out
+
+
+def sweep(limit=40, on_progress=None):
+    """Give every dated null a state, cheaply.
+
+    A full scout explains a null; that costs two model calls and is worth it
+    for a result somebody owns. For the wall we only need the one thing the
+    scout is not needed for: has the field moved under this since it was
+    shelved. One search, one call, and the answer carries the papers that
+    justify it, so a card's colour is still backed by real citations.
+    """
+    say = on_progress or (lambda *a, **k: None)
+    done = 0
+    for prob in store.all_of("problems"):
+        if done >= limit:
+            break
+        as_of = prob.get("as_of")
+        if not as_of:
+            continue
+        brief = store.get("briefs", prob["brief_id"]) if prob.get("brief_id") else None
+        if brief and brief.get("since"):
+            continue
+        card = prob["card"]
+        title = (card.get("title") or "")[:60]
+        say(f"sweeping “{title}” (shelved {as_of})")
+        qs = [q["q"] for q in ((brief or {}).get("queries") or []) if q.get("q")][:4]
+        if not qs:
+            qs = [card.get("title") or "", card.get("field") or ""]
+            qs = [q for q in qs if q]
+        newer = litsearch.multi_search(qs, from_year=as_of + 1, cap=18)
+        if not newer:
+            since = {"verdicts": [], "overall": "open", "agent_was_right": None,
+                     "what_the_field_did": f"Nothing retrieved was published after {as_of} "
+                                           "that bears on this.",
+                     "someone_else_published_it": False, "papers": []}
+        else:
+            say(f"    {len(newer)} papers published since {as_of}")
+            analysis = (brief or {}).get("analysis") or {}
+            since = agents.check_since(card, analysis, newer, as_of=as_of)
+            for v in since.get("verdicts") or []:
+                v["papers"] = [newer[i] for i in (v.get("papers") or [])
+                               if isinstance(i, int) and 0 <= i < len(newer)]
+            since["papers"] = newer
+        if not brief:
+            brief = store.put("briefs", {
+                "id": store.new_id("brf_"), "problem_id": prob["id"],
+                "scientist_id": prob["scientist_id"], "card": card,
+                "queries": [], "papers": [], "analysis": {}, "contacts": [],
+                "rejected_contacts": [], "as_of": as_of, "swept_only": True,
+            })
+            store.patch("problems", prob["id"], brief_id=brief["id"])
+        brief["since"] = since
+        store.put("briefs", brief)
+        done += 1
+        say(f"    -> {since.get('overall')}"
+            + (" (scooped)" if since.get("someone_else_published_it") else ""))
+    return done
